@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import { LoaderCircle, RefreshCw, Server } from "lucide-react";
+import { RefreshCw, Server } from "lucide-react";
 import { api, isDemoPortal } from "./api";
+import { Badge, Button } from "./ui/controls";
+import { Card, CardTitle, DataTable, DemoBanner, ErrorBanner, LoadingRow, PageHeader } from "./ui/layout";
 import { DEMO_BANNER, demoFleet } from "./portalDemo";
 import type { FirmProfile } from "./types";
 
@@ -56,35 +58,41 @@ export function FleetAdmin() {
     return () => controller.abort();
   }, []);
 
-  if (loading) return <section className="operator-panel"><p role="status"><LoaderCircle className="spin" size={18} />Loading the fleet…</p></section>;
+  if (loading) return <LoadingRow text="Loading the fleet…" />;
 
   return (
-    <section className="operator-panel">
-      <div className="page-heading">
-        <div>
-          <p className="section-label">Our admin</p>
-          <h1>Jarvis fleet</h1>
-          <p>Every firm we host, its health, and its load. Firms see only their own portal.</p>
-        </div>
-        <button className="button" disabled={demo} title={demo ? "Live data refreshes only in the live portal." : undefined}
-          onClick={() => { setLoading(true); void load().finally(() => setLoading(false)); }}>
-          <RefreshCw size={16} />Refresh
-        </button>
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+      <PageHeader kicker="Our admin" title="Jarvis fleet"
+        subtitle="Every firm we host, its health, and its load. Firms see only their own portal."
+        actions={
+          <Button variant="secondary" disabled={demo}
+            title={demo ? "Live data refreshes only in the live portal." : undefined}
+            onClick={() => { setLoading(true); void load().finally(() => setLoading(false)); }}>
+            <RefreshCw size={16} />Refresh
+          </Button>
+        } />
+      {error && <ErrorBanner text={error} />}
+      {demo && <DemoBanner text={DEMO_BANNER} />}
+      <div className="flex flex-col gap-5">
+        <Card>
+          <CardTitle action={<Server size={16} className="text-slate-500" />}>Hosted instances</CardTitle>
+          <DataTable headers={["Firm", "Health", "Model", "Approvals", "Open tasks"]}
+            empty="No instances reported. Start the deployment and reload."
+            rows={rows.map((row) => [
+              <span key="f"><span className="font-medium text-white">{row.firm}</span>
+                <br /><span className="font-mono text-xs text-slate-500">{row.tenant}</span>
+                <br /><span className="text-xs text-slate-500">{row.note}</span></span>,
+              row.reachable ? <Badge key="h" tone="green">Reachable</Badge> : <Badge key="h" tone="red">Unreachable</Badge>,
+              <span key="m" className="font-mono text-xs text-slate-400">{row.model}</span>,
+              <span key="p" className="text-lg font-semibold text-white">{row.pending}</span>,
+              <span key="o" className="text-lg font-semibold text-white">{row.open}</span>,
+            ])} />
+        </Card>
+        <Card>
+          <CardTitle>Add a firm</CardTitle>
+          <p className="text-sm text-slate-400">Phase A: copy this deployment, edit <code className="rounded bg-surface-950 px-1.5 py-0.5 font-mono text-xs text-emerald-300">operator/config/firm.json</code> (tenant, name, industry, languages, packs), and start it with its own database and domain. The one-command template script is the M10 milestone.</p>
+        </Card>
       </div>
-      {error && <p className="operator-error" role="alert">{error}</p>}
-      {demo && <p className="operator-card" role="note"><strong>{DEMO_BANNER}</strong></p>}
-      <section className="operator-card"><h2><Server size={16} /> Hosted instances</h2>
-        {rows.length === 0 && <p>No instances reported. Start the deployment and reload.</p>}
-        {rows.map((row) => (
-          <p key={row.tenant}>
-            <strong>{row.firm}</strong> ({row.tenant}) · {row.reachable ? "Reachable" : "Unreachable"} · {row.model} · {row.pending} approvals waiting · {row.open} open tasks
-            <br /><span className="muted">{row.note}</span>
-          </p>
-        ))}
-      </section>
-      <section className="operator-card"><h2>Add a firm</h2>
-        <p className="muted">Phase A: copy this deployment, edit <code>operator/config/firm.json</code> (tenant, name, industry, languages, packs), and start it with its own database and domain. The one-command template script is the M10 milestone.</p>
-      </section>
-    </section>
+    </div>
   );
 }
