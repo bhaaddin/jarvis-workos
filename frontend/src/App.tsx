@@ -47,6 +47,7 @@ import {
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { api, boundedApi, isDemoPortal, isRemoteCall, isRemoteOperator, streamChat } from "./api";
+import { cn } from "./ui/controls";
 import { useVoice } from "./useVoice";
 import { CallScreen } from "./CallScreen";
 import { OperatorPanel } from "./OperatorPanel";
@@ -87,8 +88,13 @@ const navigation: { id: View; label: string; icon: typeof Bot }[] = [
   { id: "runs", label: "Run history", icon: Activity },
   { id: "settings", label: "Settings", icon: Settings2 },
 ];
-const defaults: Preferences = {
-  theme: "dark",
+// shadcn-admin style grouped sidebar; demo builds only expose the portal group.
+const navGroups: Array<{ label: string; ids: View[] }> = [
+  { label: "Workspace", ids: ["operator", "overview", "assistant", "projects"] },
+  { label: "Portals", ids: ["firm", "fleet"] },
+  { label: "System", ids: ["skills", "automations", "runs", "settings"] },
+];
+const defaults: Preferences = {  theme: "dark",
   voice: "bm_george",
   auto_speak: false,
   auto_send_voice: false,
@@ -862,20 +868,21 @@ export default function App() {
       <aside className={`sidebar ${menu ? "open" : ""}`}>
         <a
           href="#"
-          className="brand"
+          className="flex items-center gap-3 px-2 pb-6"
           onClick={(event) => {
             event.preventDefault();
             navigate("overview");
           }}
         >
-          <span className="brand-symbol">J</span>
-          <span>
-            JARVIS<small>Command center</small>
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-xl font-bold text-slate-950">J</span>
+          <span className="flex-1 text-lg font-semibold tracking-wide text-white">
+            JARVIS
+            <small className="block text-[11px] font-normal tracking-normal text-slate-500">Command center</small>
           </span>
-          <Badge>0.5</Badge>
+          <span className="rounded-full border border-line bg-surface-800 px-2 py-0.5 text-[11px] text-slate-400">0.5</span>
         </a>
         <button
-          className="quick-search"
+          className="mb-4 flex w-full items-center gap-2.5 rounded-lg border border-line bg-surface-950 px-3 py-2 text-sm text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
           onClick={() => {
             navigate("skills");
             setTimeout(
@@ -884,87 +891,102 @@ export default function App() {
             );
           }}
         >
-          <Search size={16} />
-          <span>Find a capability</span>
-          <kbd>Ctrl K</kbd>
+          <Search size={15} />
+          <span className="flex-1 text-left">Search capabilities</span>
+          <kbd className="rounded border border-line bg-surface-800 px-1.5 py-0.5 text-[10px] text-slate-500">Ctrl K</kbd>
         </button>
-        <nav aria-label="Main navigation">
-          {visibleNav.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${view === item.id ? "selected" : ""}`}
-              aria-current={view === item.id ? "page" : undefined}
-              onClick={() => navigate(item.id)}
-            >
-              <item.icon size={19} />
-              <span>{item.label}</span>
-              {item.id === "skills" && system && (
-                <small>{number(system.catalog.available)}</small>
-              )}
-              {item.id === "runs" &&
-                operations.some((run) => running(run.status)) && (
-                  <i className="live-dot" />
-                )}
-            </button>
-          ))}
+        <nav aria-label="Main navigation" className="flex flex-col gap-4">
+          {navGroups.map((group) => {
+            const items = visibleNav.filter((item) => group.ids.includes(item.id));
+            if (!items.length) return null;
+            return (
+              <div key={group.label}>
+                <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-600">{group.label}</p>
+                {items.map((item) => (
+                  <button
+                    key={item.id}
+                    aria-current={view === item.id ? "page" : undefined}
+                    onClick={() => navigate(item.id)}
+                    className={cn("mb-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                      view === item.id
+                        ? "border-l-2 border-emerald-400 bg-surface-800 font-medium text-white shadow-sm"
+                        : "border-l-2 border-transparent text-slate-400 hover:bg-surface-800/60 hover:text-slate-100")}
+                  >
+                    <item.icon size={18} />
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.id === "skills" && system && (
+                      <small className="text-xs text-slate-500">{number(system.catalog.available)}</small>
+                    )}
+                    {item.id === "runs" &&
+                      operations.some((run) => running(run.status)) && (
+                        <i className="live-dot" />
+                      )}
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
-        <div className="sidebar-projects">
-          <div className="sidebar-section">
-            <span>Connected projects</span>
+        <div className="mt-4 flex min-h-0 flex-1 flex-col">
+          <div className="mb-1.5 flex items-center justify-between px-3">
+            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-600">Connected projects</span>
             <button
-              className="icon-button"
+              className="rounded-md p-1 text-slate-500 transition-colors hover:bg-surface-800 hover:text-slate-200"
               aria-label="Connect a project"
               onClick={() => setConnect(true)}
             >
               <Plus size={15} />
             </button>
           </div>
-          <input className="sidebar-project-filter" aria-label="Filter connected projects" placeholder="Filter projects…" value={projectFilter} onChange={event=>setProjectFilter(event.target.value)}/>
+          <input className="mb-1.5 rounded-lg border border-line bg-surface-950 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none" aria-label="Filter connected projects" placeholder="Filter projects…" value={projectFilter} onChange={event=>setProjectFilter(event.target.value)}/>
+          <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
           {projects.filter(item=>!projectFilter||(item.id+' '+item.name).toLowerCase().includes(projectFilter.toLowerCase())).map((item) => (
             <button
               key={item.id}
-              className={`project-shortcut ${project === item.id ? "current" : ""}`}
               onClick={() => {
                 setProject(item.id);
                 navigate("projects");
               }}
+              className={cn("flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors",
+                project === item.id ? "bg-surface-800 text-white" : "text-slate-400 hover:bg-surface-800/60 hover:text-slate-100")}
             >
-              <span className="project-avatar">{item.name.slice(0, 1)}</span>
-              <span>
-                {item.name}
-                <small>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-700 text-xs font-semibold text-emerald-300">{item.name.slice(0, 1)}</span>
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate">{item.name}</span>
+                <small className="block text-[11px] text-slate-600">
                   {item.roots.length} source folder
                   {item.roots.length === 1 ? "" : "s"}
                 </small>
               </span>
             </button>
           ))}
+          </div>
         </div>
-        <div className="sidebar-bottom">
-          <div className="local-indicator">
+        <div className="mt-3 border-t border-line pt-3">
+          <div className="mb-2 flex items-center gap-2 px-3 text-xs text-slate-500">
             <i className="live-dot" />
             Running on your PC
           </div>
-          <a href="http://localhost:18789" target="_blank" rel="noreferrer">
-            OpenClaw controls <ExternalLink size={13} />
+          <a className="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-500 transition-colors hover:text-slate-300" href="http://localhost:18789" target="_blank" rel="noreferrer">
+            OpenClaw controls <ExternalLink size={12} />
           </a>
-          <a href="http://localhost:5679" target="_blank" rel="noreferrer">
-            n8n workflow editor <ExternalLink size={13} />
+          <a className="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-500 transition-colors hover:text-slate-300" href="http://localhost:5679" target="_blank" rel="noreferrer">
+            n8n workflow editor <ExternalLink size={12} />
           </a>
         </div>
       </aside>
       <div className="main-shell">
-        <header className="topbar">
-          <div className="topbar-left">
+        <header className="flex h-[74px] items-center justify-between gap-4 border-b border-line bg-surface-950 px-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-2">
             <button
-              className="icon-button mobile-menu"
+              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-surface-800 hover:text-slate-100 md:hidden"
               aria-label="Open navigation"
               onClick={() => setMenu(true)}
             >
               <Menu size={22} />
             </button>
-            <span>{remoteCall ? "Notebook call" : "Workspace"}</span>
-            <ChevronRight size={14} />
+            <span className="hidden text-sm text-slate-500 sm:inline">{remoteCall ? "Notebook call" : "Workspace"}</span>
+            <ChevronRight size={14} className="hidden text-slate-600 sm:inline" />
             <label className="sr-only" htmlFor="active-project">
               Active project
             </label>
@@ -972,6 +994,7 @@ export default function App() {
               id="active-project"
               value={project}
               onChange={(event) => setProject(event.target.value)}
+              className="max-w-[180px] truncate rounded-lg border border-line bg-surface-900 px-2.5 py-1.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none sm:max-w-xs"
             >
               {projects.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -980,20 +1003,20 @@ export default function App() {
               ))}
             </select>
           </div>
-          <div className="topbar-right">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
-              className="call-launch"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
               onClick={callJarvis}
               disabled={!voiceStatus.available || !voice.conversationSupported || (view !== "operator" && (!thread || busy.has(key) || historyLoading))}
             >
-              <Phone size={18} /> Call JARVIS
+              <Phone size={16} /> <span className="hidden sm:inline">Call JARVIS</span><span className="sm:hidden">Call</span>
             </button>
-            <span className="model-chip">
-              <Bot size={15} />
+            <span className="hidden items-center gap-1.5 rounded-full border border-line bg-surface-900 px-3 py-1.5 text-xs text-slate-300 md:inline-flex">
+              <Bot size={14} className="text-emerald-400" />
               {demoMode ? "Demo" : (system?.model || "Connecting assistant")}
             </span>
             <button
-              className="icon-button"
+              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-surface-800 hover:text-slate-100"
               aria-label="Toggle theme"
               onClick={() =>
                 void savePreferences({
@@ -1007,7 +1030,7 @@ export default function App() {
                 <Moon size={18} />
               )}
             </button>
-            <span className="user-avatar">M</span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-700 text-sm font-semibold text-emerald-300">M</span>
           </div>
         </header>
         {toast && (
