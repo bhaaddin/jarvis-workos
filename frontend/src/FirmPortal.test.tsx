@@ -28,7 +28,7 @@ describe("firm portal summary", () => {
     vi.stubEnv("VITE_PORTAL_DEMO", "true");
     const html = renderToStaticMarkup(<FirmPortal onTalk={() => {}} />);
     expect(html).toContain("DEMO — synthetic data");
-    expect(html).toContain("Demo Řemeslnictví Novák");
+    expect(html).toContain("Řemeslnictví Novák");
     expect(html).not.toContain("Connecting the firm portal");
   });
 });

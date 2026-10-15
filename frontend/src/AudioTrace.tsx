@@ -41,6 +41,7 @@ export function AudioTrace({ source, speaker, open, muted = false }: {
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
   }, [source, speaker, open, muted]);
-  return <canvas ref={canvas} className="speaker-trace" width={420} height={88}
+  return <canvas ref={canvas} width={420} height={88}
+    style={{ display: "block", width: "100%", height: 66, marginTop: 14, color: speaker === "user" ? "#ffb000" : "#3dff73" }}
     aria-label={speaker === "user" ? "Your microphone waveform" : "JARVIS playback waveform"} />;
 }

@@ -13,7 +13,10 @@
     "test:notebook": "playwright test --config=playwright.notebook.config.ts"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
     "@fontsource/ibm-plex-sans": "5.3.0",
+    "@mui/material": "^9.5.0",
     "@radix-ui/react-slot": "1.5.0",
     "@ricky0123/vad-web": "0.0.31",
     "@tailwindcss/vite": "^4.3.3",

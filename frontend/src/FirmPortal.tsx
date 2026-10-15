@@ -1,8 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Checkbox,
+  Chip,
+  Container,
+  FormControlLabel,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { Bell, Check, Download, FileUp, RefreshCw, Send, X } from "lucide-react";
 import { api, isDemoPortal } from "./api";
-import { Badge, Button, Field, Tabs, TextInput } from "./ui/controls";
-import { Card, CardTitle, DataTable, DemoBanner, ErrorBanner, LoadingRow, PageHeader, Stat } from "./ui/layout";
+import { DataTable, LoadingRow, NoticeBanner, PageHeader, StatCard } from "./components";
 import { DEMO_BANNER, demoActions, demoArtifacts, demoConnections, demoEvents, demoNotices, demoProfile, demoTasks } from "./portalDemo";
 import type { FirmProfile } from "./types";
 
@@ -16,16 +29,21 @@ type Task = { id: string; data: { title: string; state: string; dueAt: number | 
 type Artifact = { id: string; name: string; format: string; bytes: number; url: string };
 type AuditEvent = { kind?: string; created?: number; at?: number; [key: string]: unknown };
 type Notice = { id?: string; title?: string; message?: string; [key: string]: unknown };
-type Tab = "dashboard" | "approvals" | "documents" | "reports" | "connections" | "permissions" | "settings" | "audit";
+type TabId = "dashboard" | "approvals" | "documents" | "reports" | "connections" | "permissions" | "settings" | "audit";
 
 export function summarizeFirm(profile: FirmProfile, pending: number, open: number): string {
   return `${profile.displayName} · ${profile.industry} · ${profile.languages.join("+").toUpperCase()} · ` +
     `${pending} waiting for approval · ${open} open tasks · packs: ${profile.fieldPacks.join(", ") || "none"}`;
 }
 
+function toneChip(tone: string, label: React.ReactNode) {
+  const color = tone === "green" ? "success" : tone === "amber" ? "warning" : tone === "blue" ? "info" : tone === "red" ? "error" : "default";
+  return <Chip size="small" color={color as "success"} label={label} />;
+}
+
 export function FirmPortal({ onTalk }: { onTalk: () => void }) {
   const demo = isDemoPortal();
-  const [tab, setTab] = useState<Tab>("dashboard");
+  const [tab, setTab] = useState<TabId>("dashboard");
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState("");
   const [profile, setProfile] = useState<FirmProfile | null>(demo ? demoProfile : null);
@@ -125,7 +143,7 @@ export function FirmPortal({ onTalk }: { onTalk: () => void }) {
 
   const pending = actions.filter((item) => item.state === "awaiting_approval");
   const open = tasks.filter((item) => !["done", "completed", "cancelled"].includes(item.data.state));
-  const tabs: Array<readonly [Tab, string]> = [["dashboard", "Dashboard"],
+  const tabs: Array<readonly [TabId, string]> = [["dashboard", "Dashboard"],
     ["approvals", `Approvals${pending.length ? ` (${pending.length})` : ""}`],
     ["documents", "Documents"], ["reports", "Reports"], ["connections", "Connections"],
     ["permissions", "Permissions"], ["settings", "Settings"], ["audit", "Audit log"]];
@@ -133,155 +151,192 @@ export function FirmPortal({ onTalk }: { onTalk: () => void }) {
   if (loading) return <LoadingRow text="Connecting the firm portal…" />;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, py: 3 }}>
       <PageHeader kicker="Firm portal" title={profile?.displayName ?? "Your firm"}
         subtitle={profile ? summarizeFirm(profile, pending.length, open.length) : "The firm profile is not configured yet."}
         actions={<>
-          <Button variant="primary" onClick={onTalk}><Send size={16} />Talk to JARVIS</Button>
-          <Button variant="secondary" disabled={demo} title={demo ? "Live data refreshes only in the live portal." : undefined}
-            onClick={() => { setLoading(true); void load().finally(() => setLoading(false)); }}>
-            <RefreshCw size={16} />Refresh
+          <Button variant="contained" startIcon={<Send size={16} />} onClick={onTalk}>Talk to JARVIS</Button>
+          <Button variant="outlined" disabled={demo} title={demo ? "Live data refreshes only in the live portal." : undefined}
+            startIcon={<RefreshCw size={16} />} onClick={() => { setLoading(true); void load().finally(() => setLoading(false)); }}>
+            Refresh
           </Button>
         </>} />
-      {error && <ErrorBanner text={error} />}
-      {demo && <DemoBanner text={DEMO_BANNER} />}
-      <Tabs tabs={tabs} active={tab} onChange={setTab} />
+      {error && <NoticeBanner kind="error" text={error} />}
+      {demo && <NoticeBanner kind="demo" text={DEMO_BANNER} />}
+      <Tabs value={tab} onChange={(_, value: TabId) => setTab(value)} variant="scrollable" scrollButtons="auto" sx={{ mb: 2.5 }}>
+        {tabs.map(([id, label]) => <Tab key={id} value={id} label={label} />)}
+      </Tabs>
 
-      <div className="mt-5">
+      <Box sx={{ mt: 2.5 }}>
         {tab === "dashboard" && (
-          <div className="flex flex-col gap-5">
-            <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-              <Stat label="Waiting for approval" value={pending.length} sub="tap to decide in the Approvals tab" />
-              <Stat label="Open tasks" value={open.length} sub="tracked work for this firm" />
-              <Stat label="Documents ready" value={artifacts.length} sub="offers, reports, invoice drafts" />
-              <Stat label="Assistant model" value={model.replace(/^jarvis-/, "").replace(":", " ")} sub={profile?.languages.join(" / ").toUpperCase()} />
-            </div>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", xl: "1fr 1fr 1fr 1fr" }, gap: 2 }}>
+              <StatCard label="Waiting for approval" value={pending.length} sub="tap to decide in the Approvals tab" />
+              <StatCard label="Open tasks" value={open.length} sub="tracked work for this firm" />
+              <StatCard label="Documents ready" value={artifacts.length} sub="offers, reports, invoice drafts" />
+              <StatCard label="Assistant model" value={model.replace(/^jarvis-/, "").replace(":", " ")} sub={profile?.languages.join(" / ").toUpperCase()} />
+            </Box>
             {notices.length > 0 && (
-              <Card><CardTitle>Latest notices</CardTitle>
-                <ul className="flex flex-col gap-2">
-                  {notices.slice(0, 5).map((notice, index) => (
-                    <li key={String(notice.id ?? index)} className="flex items-start gap-2 text-sm text-slate-200">
-                      <Bell size={15} className="mt-0.5 shrink-0 text-emerald-400" />
-                      {String(notice.title ?? notice.message ?? "Notice").slice(0, 200)}
-                    </li>
-                  ))}
-                </ul>
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="h6" sx={{ mb: 1.5 }}>Latest notices</Typography>
+                  <Box component="ul" sx={{ m: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}>
+                    {notices.slice(0, 5).map((notice, index) => (
+                      <Box component="li" key={String(notice.id ?? index)} sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+                        <Bell size={15} style={{ marginTop: 2, flexShrink: 0, color: "#10b981" }} />
+                        <Typography variant="body2">
+                          {String(notice.title ?? notice.message ?? "Notice").slice(0, 200)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
               </Card>
             )}
-          </div>
+          </Box>
         )}
 
         {tab === "approvals" && (
-          <Card>
-            <CardTitle>Approval inbox</CardTitle>
-            <p className="mb-4 text-sm text-slate-400">Nothing is sent, published, or paid without your tap. Deciding twice on one item is refused.</p>
-            <DataTable headers={["Proposal", "Tool", "Decision"]}
-              empty="Nothing is waiting. New proposals from JARVIS appear here."
-              rows={pending.map((action) => [
-                <span key="r">{action.reason.slice(0, 160)}</span>,
-                <span key="t" className="font-mono text-xs text-slate-400">{action.tool}</span>,
-                <span key="d" className="flex gap-2">
-                  <Button variant="primary" disabled={busy !== ""} onClick={() => void decide(action, "approve")}><Check size={15} />Approve</Button>
-                  <Button variant="danger" disabled={busy !== ""} onClick={() => void decide(action, "deny")}><X size={15} />Deny</Button>
-                </span>,
-              ])} />
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6">Approval inbox</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Nothing is sent, published, or paid without your tap. Deciding twice on one item is refused.
+              </Typography>
+              <DataTable headers={["Proposal", "Tool", "Decision"]}
+                empty="Nothing is waiting. New proposals from JARVIS appear here."
+                rows={pending.map((action) => [
+                  <span key="r">{action.reason.slice(0, 160)}</span>,
+                  <Typography key="t" variant="body2" color="text.secondary" sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{action.tool}</Typography>,
+                  <Box key="d" sx={{ display: "flex", gap: 1 }}>
+                    <Button variant="contained" size="small" disabled={busy !== ""} startIcon={<Check size={15} />} onClick={() => void decide(action, "approve")}>Approve</Button>
+                    <Button variant="outlined" size="small" color="error" disabled={busy !== ""} startIcon={<X size={15} />} onClick={() => void decide(action, "deny")}>Deny</Button>
+                  </Box>,
+                ])} />
+            </CardContent>
           </Card>
         )}
 
         {tab === "documents" && (
-          <Card>
-            <CardTitle action={
-              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface-800 px-4 py-2 text-sm text-slate-100 transition-colors hover:bg-surface-700">
-                <FileUp size={16} />Upload a document
-                <input type="file" hidden accept=".pdf,.docx,.xlsx,.csv,.txt,.md,.json"
-                  onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
-              </label>
-            }>Documents</CardTitle>
-            {busy === "upload" && <p role="status" className="mb-3 text-sm text-slate-400">Uploading…</p>}
-            <DataTable headers={["File", "Size", "Get"]}
-              empty="No documents yet. Ask JARVIS to prepare an offer, report, or invoice draft."
-              rows={artifacts.map((file) => [
-                <span key="n">{file.name}<span className="ml-2 text-xs text-slate-500">{file.format.toUpperCase()}</span></span>,
-                <span key="b" className="text-slate-400">{file.bytes.toLocaleString()} B</span>,
-                uuid.test(file.id)
-                  ? <a key="d" className="inline-flex items-center gap-1.5 text-sm text-emerald-300 hover:text-emerald-200"
-                      href={base + "/api/artifacts/" + file.id + "/download"} download><Download size={15} />Download</a>
-                  : <span key="d" className="text-xs text-slate-600">demo file</span>,
-              ])} />
+          <Card variant="outlined">
+            <CardContent>
+              <Box sx={{ mb: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+                <Typography variant="h6">Documents</Typography>
+                <Button variant="outlined" size="small" component="label" startIcon={<FileUp size={16} />}>
+                  Upload a document
+                  <input type="file" hidden accept=".pdf,.docx,.xlsx,.csv,.txt,.md,.json"
+                    onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }} />
+                </Button>
+              </Box>
+              {busy === "upload" && <Typography variant="body2" color="text.secondary" role="status" sx={{ mb: 1.5 }}>Uploading…</Typography>}
+              <DataTable headers={["File", "Size", "Get"]}
+                empty="No documents yet. Ask JARVIS to prepare an offer, report, or invoice draft."
+                rows={artifacts.map((file) => [
+                  <span key="n">{file.name}<Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>{file.format.toUpperCase()}</Typography></span>,
+                  <Typography key="b" variant="body2" color="text.secondary">{file.bytes.toLocaleString()} B</Typography>,
+                  uuid.test(file.id)
+                    ? <Button key="d" size="small" startIcon={<Download size={15} />} href={base + "/api/artifacts/" + file.id + "/download"} download>Download</Button>
+                    : <Typography key="d" variant="caption" color="text.secondary">demo file</Typography>,
+                ])} />
+            </CardContent>
           </Card>
         )}
 
         {tab === "reports" && (
-          <Card><CardTitle>Work report</CardTitle>
-            <DataTable headers={["Task", "State", "Due"]}
-              empty="No tasks recorded yet."
-              rows={tasks.slice(0, 30).map((task) => [
-                <span key="t">{task.data.title}</span>,
-                <span key="s"><Badge tone={task.data.state === "open" ? "blue" : "neutral"}>{task.data.state}</Badge></span>,
-                <span key="d" className="text-slate-400">{task.data.dueAt ? new Date(task.data.dueAt * 1000).toLocaleString() : "—"}</span>,
-              ])} />
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2 }}>Work report</Typography>
+              <DataTable headers={["Task", "State", "Due"]}
+                empty="No tasks recorded yet."
+                rows={tasks.slice(0, 30).map((task) => [
+                  <span key="t">{task.data.title}</span>,
+                  <span key="s">{toneChip(task.data.state === "open" ? "blue" : "neutral", task.data.state)}</span>,
+                  <Typography key="d" variant="body2" color="text.secondary">{task.data.dueAt ? new Date(task.data.dueAt * 1000).toLocaleString() : "—"}</Typography>,
+                ])} />
+            </CardContent>
           </Card>
         )}
 
         {tab === "connections" && (
-          <Card><CardTitle>Connected accounts</CardTitle>
-            <p className="mb-4 text-sm text-slate-400">Sign-ins stay encrypted on your server. Connect them in the Tasks view; this page only shows status.</p>
-            <DataTable headers={["Account", "Status"]}
-              empty="No accounts registered."
-              rows={[["clinic", "Clinic system"], ["mail", "Email"], ["social", "Social accounts"], ["finance", "Finance (paper only)"]].map(([name, label]) => [
-                <span key="n">{label}</span>,
-                conn[name]?.connected
-                  ? <span key="s"><Badge tone="green">Connected</Badge>{conn[name]?.displayName && <span className="ml-2 text-sm text-slate-400">{conn[name]?.displayName}</span>}</span>
-                  : <span key="s"><Badge>Not connected</Badge></span>,
-              ])} />
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6">Connected accounts</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Sign-ins stay encrypted on your server. Connect them in the Tasks view; this page only shows status.
+              </Typography>
+              <DataTable headers={["Account", "Status"]}
+                empty="No accounts registered."
+                rows={[["clinic", "Clinic system"], ["mail", "Email"], ["social", "Social accounts"], ["finance", "Finance (paper only)"]].map(([name, label]) => [
+                  <span key="n">{label}</span>,
+                  conn[name]?.connected
+                    ? <Box key="s" sx={{ display: "flex", alignItems: "center", gap: 1 }}>{toneChip("green", "Connected")}{conn[name]?.displayName && <Typography variant="body2" color="text.secondary">{conn[name]?.displayName}</Typography>}</Box>
+                    : <span key="s">{toneChip("neutral", "Not connected")}</span>,
+                ])} />
+            </CardContent>
           </Card>
         )}
 
         {tab === "permissions" && (
-          <Card><CardTitle>What JARVIS may do alone</CardTitle>
-            <p className="mb-4 text-sm text-slate-400">Per tool: automatic or ask-first, with per-minute and per-day limits. Money and trading stay ask-first or off.</p>
-            <div className="flex flex-wrap items-end gap-3">
-              <Field label="Tool name"><TextInput placeholder="jarvis_tool_name" value={perm.tool}
-                onChange={(event) => setPerm({ ...perm, tool: event.target.value })} /></Field>
-              <label className="flex items-center gap-2 text-sm text-slate-300">
-                <input type="checkbox" checked={perm.automatic} className="h-4 w-4 accent-emerald-500"
-                  onChange={(event) => setPerm({ ...perm, automatic: event.target.checked })} /> automatic</label>
-              <Field label="Max / minute"><TextInput value={perm.maxPerMinute} className="w-24"
-                onChange={(event) => setPerm({ ...perm, maxPerMinute: event.target.value })} /></Field>
-              <Field label="Max / day"><TextInput value={perm.maxPerDay} className="w-24"
-                onChange={(event) => setPerm({ ...perm, maxPerDay: event.target.value })} /></Field>
-              <Button variant="primary" disabled={busy === "perm" || !perm.tool} onClick={() => void savePermission()}>Save rule</Button>
-            </div>
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6">What JARVIS may do alone</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Per tool: automatic or ask-first, with per-minute and per-day limits. Money and trading stay ask-first or off.
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", gap: 1.5 }}>
+                <TextField label="Tool name" placeholder="jarvis_tool_name" value={perm.tool}
+                  onChange={(event) => setPerm({ ...perm, tool: event.target.value })} sx={{ maxWidth: 220 }} />
+                <FormControlLabel
+                  control={<Checkbox checked={perm.automatic} onChange={(event) => setPerm({ ...perm, automatic: event.target.checked })} />}
+                  label="automatic" />
+                <TextField label="Max / minute" value={perm.maxPerMinute}
+                  onChange={(event) => setPerm({ ...perm, maxPerMinute: event.target.value })} sx={{ maxWidth: 130 }} />
+                <TextField label="Max / day" value={perm.maxPerDay}
+                  onChange={(event) => setPerm({ ...perm, maxPerDay: event.target.value })} sx={{ maxWidth: 130 }} />
+                <Button variant="contained" disabled={busy === "perm" || !perm.tool} onClick={() => void savePermission()}>Save rule</Button>
+              </Box>
+            </CardContent>
           </Card>
         )}
 
         {tab === "settings" && profile && (
-          <div className="flex flex-col gap-5">
-            <Card><CardTitle>Firm settings</CardTitle>
-              <DataTable headers={["Setting", "Value"]} empty=""
-                rows={[
-                  ["Industry", profile.industry],
-                  ["Languages", profile.languages.join(", ").toUpperCase()],
-                  ["Voice and style", profile.tone],
-                  ["Field packs", profile.fieldPacks.join(", ")],
-                  ["Approval defaults", Object.entries(profile.approvalDefaults).map(([key, value]) => `${key}: ${value}`).join(" · ")],
-                ].map(([key, value]) => [<span key="k" className="text-slate-400">{key}</span>, <span key="v">{String(value)}</span>])} />
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2 }}>Firm settings</Typography>
+                <DataTable headers={["Setting", "Value"]} empty=""
+                  rows={[
+                    ["Industry", profile.industry],
+                    ["Languages", profile.languages.join(", ").toUpperCase()],
+                    ["Voice and style", profile.tone],
+                    ["Field packs", profile.fieldPacks.join(", ")],
+                    ["Approval defaults", Object.entries(profile.approvalDefaults).map(([key, value]) => `${key}: ${value}`).join(" · ")],
+                  ].map(([key, value]) => [<Typography key="k" variant="body2" color="text.secondary">{key}</Typography>, <span key="v">{String(value)}</span>])} />
+              </CardContent>
             </Card>
-            <Card><CardTitle>Billing</CardTitle><p className="text-sm text-slate-300">{profile.billingNote}</p></Card>
-          </div>
+            <Card variant="outlined">
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 1 }}>Billing</Typography>
+                <Typography variant="body2">{profile.billingNote}</Typography>
+              </CardContent>
+            </Card>
+          </Box>
         )}
 
         {tab === "audit" && (
-          <Card><CardTitle>Audit log</CardTitle>
-            <DataTable headers={["Event", "Time"]} empty="No recorded events yet."
-              rows={events.slice(0, 50).map((event) => [
-                <span key="k" className="font-mono text-xs">{String(event.kind ?? "event")}</span>,
-                <span key="t" className="text-slate-400">{(event.created ?? event.at)
-                  ? new Date(Number(event.created ?? event.at) * 1000).toLocaleString() : "—"}</span>,
-              ])} />
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2 }}>Audit log</Typography>
+              <DataTable headers={["Event", "Time"]} empty="No recorded events yet."
+                rows={events.slice(0, 50).map((event) => [
+                  <Typography key="k" variant="body2" sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{String(event.kind ?? "event")}</Typography>,
+                  <Typography key="t" variant="body2" color="text.secondary">{(event.created ?? event.at)
+                    ? new Date(Number(event.created ?? event.at) * 1000).toLocaleString() : "—"}</Typography>,
+                ])} />
+            </CardContent>
           </Card>
         )}
-      </div>
-    </div>
+      </Box>
+    </Container>
   );
 }

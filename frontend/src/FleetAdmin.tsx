@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
+import { Box, Button, Card, CardContent, Chip, Container, Typography } from "@mui/material";
 import { RefreshCw, Server } from "lucide-react";
 import { api, isDemoPortal } from "./api";
-import { Badge, Button } from "./ui/controls";
-import { Card, CardTitle, DataTable, DemoBanner, ErrorBanner, LoadingRow, PageHeader } from "./ui/layout";
+import { DataTable, LoadingRow, NoticeBanner, PageHeader } from "./components";
 import { DEMO_BANNER, demoFleet } from "./portalDemo";
 import type { FirmProfile } from "./types";
 
@@ -13,6 +13,12 @@ const errorText = (error: unknown) => error instanceof Error ? error.message : "
 type InstanceRow = {
   firm: string; tenant: string; model: string; pending: number; open: number; reachable: boolean; note: string;
 };
+
+function HealthChip({ reachable }: { reachable: boolean }) {
+  return reachable
+    ? <Chip size="small" color="success" label="Reachable" />
+    : <Chip size="small" color="error" label="Unreachable" />;
+}
 
 export function FleetAdmin() {
   const demo = isDemoPortal();
@@ -61,38 +67,50 @@ export function FleetAdmin() {
   if (loading) return <LoadingRow text="Loading the fleet…" />;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
+    <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 }, py: 3 }}>
       <PageHeader kicker="Our admin" title="Jarvis fleet"
         subtitle="Every firm we host, its health, and its load. Firms see only their own portal."
         actions={
-          <Button variant="secondary" disabled={demo}
+          <Button variant="outlined" disabled={demo}
             title={demo ? "Live data refreshes only in the live portal." : undefined}
+            startIcon={<RefreshCw size={16} />}
             onClick={() => { setLoading(true); void load().finally(() => setLoading(false)); }}>
-            <RefreshCw size={16} />Refresh
+            Refresh
           </Button>
         } />
-      {error && <ErrorBanner text={error} />}
-      {demo && <DemoBanner text={DEMO_BANNER} />}
-      <div className="flex flex-col gap-5">
-        <Card>
-          <CardTitle action={<Server size={16} className="text-slate-500" />}>Hosted instances</CardTitle>
-          <DataTable headers={["Firm", "Health", "Model", "Approvals", "Open tasks"]}
-            empty="No instances reported. Start the deployment and reload."
-            rows={rows.map((row) => [
-              <span key="f"><span className="font-medium text-white">{row.firm}</span>
-                <br /><span className="font-mono text-xs text-slate-500">{row.tenant}</span>
-                <br /><span className="text-xs text-slate-500">{row.note}</span></span>,
-              row.reachable ? <Badge key="h" tone="green">Reachable</Badge> : <Badge key="h" tone="red">Unreachable</Badge>,
-              <span key="m" className="font-mono text-xs text-slate-400">{row.model}</span>,
-              <span key="p" className="text-lg font-semibold text-white">{row.pending}</span>,
-              <span key="o" className="text-lg font-semibold text-white">{row.open}</span>,
-            ])} />
+      {error && <NoticeBanner kind="error" text={error} />}
+      {demo && <NoticeBanner kind="demo" text={DEMO_BANNER} />}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+        <Card variant="outlined">
+          <CardContent>
+            <Box sx={{ mb: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
+              <Typography variant="h6">Hosted instances</Typography>
+              <Server size={16} color="#64748b" />
+            </Box>
+            <DataTable headers={["Firm", "Health", "Model", "Approvals", "Open tasks"]}
+              empty="No instances reported. Start the deployment and reload."
+              rows={rows.map((row) => [
+                <Box key="f">
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{row.firm}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{row.tenant}</Typography>
+                  <Typography variant="caption" color="text.secondary">{row.note}</Typography>
+                </Box>,
+                <HealthChip key="h" reachable={row.reachable} />,
+                <Typography key="m" variant="body2" color="text.secondary" sx={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{row.model}</Typography>,
+                <Typography key="p" variant="h6">{row.pending}</Typography>,
+                <Typography key="o" variant="h6">{row.open}</Typography>,
+              ])} />
+          </CardContent>
         </Card>
-        <Card>
-          <CardTitle>Add a firm</CardTitle>
-          <p className="text-sm text-slate-400">Phase A: copy this deployment, edit <code className="rounded bg-surface-950 px-1.5 py-0.5 font-mono text-xs text-emerald-300">operator/config/firm.json</code> (tenant, name, industry, languages, packs), and start it with its own database and domain. The one-command template script is the M10 milestone.</p>
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 1 }}>Add a firm</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Phase A: copy this deployment, edit <Typography component="code" variant="body2" sx={{ fontFamily: "monospace" }}>operator/config/firm.json</Typography> (tenant, name, industry, languages, packs), and start it with its own database and domain. The one-command template script is the M10 milestone.
+            </Typography>
+          </CardContent>
         </Card>
-      </div>
-    </div>
+      </Box>
+    </Container>
   );
 }

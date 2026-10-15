@@ -1,53 +1,49 @@
-import { memo, useCallback, useEffect, useRef, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity,
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  BookOpen,
   Bot,
   Boxes,
   Building2,
-  Check,
   ChevronRight,
-  CircleHelp,
-  Code2,
-  Copy,
-  Download,
   ExternalLink,
-  FileCode2,
-  Folder,
   FolderOpen,
-  GitBranch,
   Layers3,
-  LoaderCircle,
   Menu,
   MessageSquare,
-  Mic,
-  Monitor,
   Moon,
   Network,
-  Play,
   Phone,
   Plus,
-  RefreshCw,
   Search,
-  Send,
   Settings2,
-  ShieldCheck,
-  Square,
   Sun,
-  Terminal,
-  Volume2,
   Workflow,
-  X,
-  Zap,
 } from "lucide-react";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import {
+  Alert,
+  AppBar,
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  CssBaseline,
+  Drawer,
+  FormControl,
+  IconButton,
+  InputLabel,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  MenuItem,
+  Select,
+  Snackbar,
+  TextField,
+  ThemeProvider,
+  Toolbar,
+  Typography,
+} from "@mui/material";
 import { api, boundedApi, isDemoPortal, isRemoteCall, isRemoteOperator, streamChat } from "./api";
-import { cn } from "./ui/controls";
 import { useVoice } from "./useVoice";
 import { CallScreen } from "./CallScreen";
 import { OperatorPanel } from "./OperatorPanel";
@@ -55,23 +51,30 @@ import { FirmPortal } from "./FirmPortal";
 import { FleetAdmin } from "./FleetAdmin";
 import { ConnectionCatalog } from "./ConnectionCatalog";
 import type { OperatorPanelHandle } from "./OperatorPanel";
-import "./call.css";
+import { makeJarvisTheme } from "./theme";
+import {
+  AssistantView,
+  AutomationsView,
+  ConnectModal,
+  OverviewView,
+  ProjectView,
+  RunDetailDialog,
+  RunsView,
+  SettingsView,
+  SkillDetailDialog,
+  SkillsView,
+} from "./views";
 import type {
   Capability,
-  CatalogPage,
   History,
   InstalledSkill,
   Message,
   Operation,
-  Overview,
   Preferences,
   Project,
   Review,
-  SearchResult,
-  SourceFile,
   System,
   Thread,
-  Tree,
   View,
   VoiceStatus,
 } from "./types";
@@ -87,12 +90,6 @@ const navigation: { id: View; label: string; icon: typeof Bot }[] = [
   { id: "automations", label: "Automations", icon: Workflow },
   { id: "runs", label: "Run history", icon: Activity },
   { id: "settings", label: "Settings", icon: Settings2 },
-];
-// shadcn-admin style grouped sidebar; demo builds only expose the portal group.
-const navGroups: Array<{ label: string; ids: View[] }> = [
-  { label: "Workspace", ids: ["operator", "overview", "assistant", "projects"] },
-  { label: "Portals", ids: ["firm", "fleet"] },
-  { label: "System", ids: ["skills", "automations", "runs", "settings"] },
 ];
 const defaults: Preferences = {  theme: "dark",
   voice: "bm_george",
@@ -112,129 +109,11 @@ const number = (value: number) =>
   new Intl.NumberFormat("en", {
     notation: value > 99999 ? "compact" : "standard",
   }).format(value);
-const when = (value?: number) =>
-  value
-    ? new Date(value * 1000).toLocaleString(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : "Saved earlier";
 const running = (status: string) => ["queued", "running"].includes(status);
 type ChatOptions = { voiceMode?: boolean; signal?: AbortSignal; onPartial?: (text: string) => void };
 type SendChat = (text: string, options?: ChatOptions) => Promise<string>;
 
-function Button({
-  children,
-  onClick,
-  primary = false,
-  disabled = false,
-  type = "button",
-  className = "",
-  title,
-}: {
-  children: ReactNode;
-  onClick?: () => void;
-  primary?: boolean;
-  disabled?: boolean;
-  type?: "button" | "submit";
-  className?: string;
-  title?: string;
-}) {
-  return (
-    <button
-      type={type}
-      className={`button ${primary ? "primary" : ""} ${className}`}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-    >
-      {children}
-    </button>
-  );
-}
-function Badge({
-  children,
-  tone = "neutral",
-}: {
-  children: ReactNode;
-  tone?: string;
-}) {
-  return <span className={`badge ${tone}`}>{children}</span>;
-}
-function Empty({
-  icon: Icon = CircleHelp,
-  title,
-  children,
-}: {
-  icon?: typeof Bot;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="empty">
-      <Icon size={30} />
-      <h3>{title}</h3>
-      <div>{children}</div>
-    </div>
-  );
-}
-const RichText = memo(function RichText({ text }: { text: string }) {
-  return (
-    <div className="markdown">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        skipHtml
-        components={{
-          a: ({ href, children }) => (
-            <a href={href} target="_blank" rel="noreferrer">
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {text}
-      </Markdown>
-    </div>
-  );
-});
-function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: ReactNode;
-}) {
-  const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    const dialog = ref.current;
-    dialog?.showModal();
-    return () => dialog?.close();
-  }, []);
-  return (
-    <dialog
-      ref={ref}
-      className="modal"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-    >
-      <div className="modal-head">
-        <h2>{title}</h2>
-        <button
-          className="icon-button"
-          aria-label="Close dialog"
-          onClick={onClose}
-        >
-          <X size={20} />
-        </button>
-      </div>
-      {children}
-    </dialog>
-  );
-}
+const DRAWER_WIDTH = 280;
 
 export default function App() {
   const [demoMode] = useState(() => isDemoPortal());
@@ -258,7 +137,7 @@ export default function App() {
   });
   const [menu, setMenu] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectFilter,setProjectFilter]=useState('');
+  const [projectFilter,setProjectFilter]=useState("");
   const [project, setProject] = useState("");
   const [system, setSystem] = useState<System | null>(null);
   const [preferences, setPreferences] = useState<Preferences>(defaults);
@@ -309,6 +188,10 @@ export default function App() {
   const active = useRef({ project, thread, view });
   active.current = { project, thread, view };
   const key = project + "/" + thread;
+  const muiTheme = useMemo(
+    () => makeJarvisTheme(preferences.theme === "light" ? "light" : "dark"),
+    [preferences.theme],
+  );
   useEffect(() => { setCallOpen(false); }, [key, view]);
   const selected = projects.find((item) => item.id === project);
   const currentMessages = messages[key] || [];
@@ -453,9 +336,6 @@ export default function App() {
       controller.abort();
     };
   }, [fail]);
-  useEffect(() => {
-    document.documentElement.dataset.theme = preferences.theme;
-  }, [preferences.theme]);
   useEffect(() => {
     if (!project) return;
     projectRevision.current++;
@@ -831,58 +711,39 @@ export default function App() {
 
   if (!ready)
     return (
-      <div className="boot">
-        <div className="brand-symbol">J</div>
-        <h1>JARVIS</h1>
-        <p>Connecting your workspace…</p>
-        {toast ? (
-          <p className="error-text">{toast.text}</p>
-        ) : (
-          <LoaderCircle className="spin" />
-        )}
-      </div>
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <Box sx={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2 }}>
+          <Avatar sx={{ width: 56, height: 56, bgcolor: "primary.main", color: "primary.contrastText", fontSize: "1.5rem", fontWeight: 800 }}>J</Avatar>
+          <Typography variant="h4" component="h1">JARVIS</Typography>
+          <Typography variant="body2" color="text.secondary">Connecting your workspace…</Typography>
+          {toast ? (
+            <Alert severity="error">{toast.text}</Alert>
+          ) : (
+            <CircularProgress />
+          )}
+        </Box>
+      </ThemeProvider>
     );
-  return (
-    <div className={`app-shell ${remoteCall ? "notebook-session" : ""}`}>
-      <CallScreen
-        open={callOpen}
-        project={selected?.name || "Your workspace"}
-        state={voice.conversation}
-        playbackPhase={voice.phase}
-        playbackStatus={voice.status}
-        audioVisual={voice.audioVisual}
-        onHangUp={hangUp}
-        onMute={(muted) => { void voice.setMuted(muted); }}
-        onResumeAudio={() => { void voice.resumePlayback(); }}
-        onRetry={callJarvis}
-      />
-      <audio ref={voice.audioRef} controls className="read-aloud-player"
-        hidden={callOpen || !voice.playing} aria-label="Spoken answer" />
-      {menu && (
-        <button
-          className="mobile-scrim"
-          aria-label="Close navigation"
-          onClick={() => setMenu(false)}
-        />
-      )}
-      <aside className={`sidebar ${menu ? "open" : ""}`}>
-        <a
-          href="#"
-          className="flex items-center gap-3 px-2 pb-6"
-          onClick={(event) => {
-            event.preventDefault();
-            navigate("overview");
-          }}
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 text-xl font-bold text-slate-950">J</span>
-          <span className="flex-1 text-lg font-semibold tracking-wide text-white">
-            JARVIS
-            <small className="block text-[11px] font-normal tracking-normal text-slate-500">Command center</small>
-          </span>
-          <span className="rounded-full border border-line bg-surface-800 px-2 py-0.5 text-[11px] text-slate-400">0.5</span>
-        </a>
-        <button
-          className="mb-4 flex w-full items-center gap-2.5 rounded-lg border border-line bg-surface-950 px-3 py-2 text-sm text-slate-400 transition-colors hover:border-slate-600 hover:text-slate-200"
+
+  const drawerContent = (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 2, cursor: "pointer" }}
+        onClick={() => navigate("overview")}
+      >
+        <Avatar sx={{ bgcolor: "primary.main", color: "primary.contrastText", fontWeight: 800 }}>J</Avatar>
+        <Box sx={{ flexGrow: 1 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 800, lineHeight: 1.1 }}>JARVIS</Typography>
+          <Typography variant="caption" color="text.secondary">Command center</Typography>
+        </Box>
+        <Chip size="small" label="0.5" />
+      </Box>
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={<Search size={16} />}
+          endIcon={<Chip size="small" label="Ctrl K" />}
           onClick={() => {
             navigate("skills");
             setTimeout(
@@ -890,1991 +751,326 @@ export default function App() {
               30,
             );
           }}
+          sx={{ justifyContent: "flex-start" }}
         >
-          <Search size={15} />
-          <span className="flex-1 text-left">Search capabilities</span>
-          <kbd className="rounded border border-line bg-surface-800 px-1.5 py-0.5 text-[10px] text-slate-500">Ctrl K</kbd>
-        </button>
-        <nav aria-label="Main navigation" className="flex flex-col gap-4">
-          {navGroups.map((group) => {
-            const items = visibleNav.filter((item) => group.ids.includes(item.id));
-            if (!items.length) return null;
-            return (
-              <div key={group.label}>
-                <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-widest text-slate-600">{group.label}</p>
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    aria-current={view === item.id ? "page" : undefined}
-                    onClick={() => navigate(item.id)}
-                    className={cn("mb-0.5 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-                      view === item.id
-                        ? "border-l-2 border-emerald-400 bg-surface-800 font-medium text-white shadow-sm"
-                        : "border-l-2 border-transparent text-slate-400 hover:bg-surface-800/60 hover:text-slate-100")}
-                  >
-                    <item.icon size={18} />
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.id === "skills" && system && (
-                      <small className="text-xs text-slate-500">{number(system.catalog.available)}</small>
-                    )}
-                    {item.id === "runs" &&
-                      operations.some((run) => running(run.status)) && (
-                        <i className="live-dot" />
-                      )}
-                  </button>
-                ))}
-              </div>
-            );
-          })}
-        </nav>
-        <div className="mt-4 flex min-h-0 flex-1 flex-col">
-          <div className="mb-1.5 flex items-center justify-between px-3">
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-600">Connected projects</span>
-            <button
-              className="rounded-md p-1 text-slate-500 transition-colors hover:bg-surface-800 hover:text-slate-200"
-              aria-label="Connect a project"
-              onClick={() => setConnect(true)}
-            >
-              <Plus size={15} />
-            </button>
-          </div>
-          <input className="mb-1.5 rounded-lg border border-line bg-surface-950 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:border-emerald-500 focus:outline-none" aria-label="Filter connected projects" placeholder="Filter projects…" value={projectFilter} onChange={event=>setProjectFilter(event.target.value)}/>
-          <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
-          {projects.filter(item=>!projectFilter||(item.id+' '+item.name).toLowerCase().includes(projectFilter.toLowerCase())).map((item) => (
-            <button
+          <Box component="span" sx={{ flexGrow: 1, textAlign: "left" }}>Find a capability</Box>
+        </Button>
+      </Box>
+      <List sx={{ px: 1 }} aria-label="Main navigation">
+        {visibleNav.map((item) => (
+          <ListItemButton
+            key={item.id}
+            selected={view === item.id}
+            onClick={() => navigate(item.id)}
+            sx={{ borderRadius: 2 }}
+          >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <item.icon size={19} />
+            </ListItemIcon>
+            <ListItemText primary={item.label} />
+            {item.id === "skills" && system && (
+              <Chip size="small" label={number(system.catalog.available)} />
+            )}
+            {item.id === "runs" && operations.some((run) => running(run.status)) && (
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "success.main" }} />
+            )}
+          </ListItemButton>
+        ))}
+      </List>
+      <Box sx={{ px: 2, pt: 1, flexGrow: 1, overflowY: "auto" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
+            Connected projects
+          </Typography>
+          <IconButton size="small" aria-label="Connect a project" onClick={() => setConnect(true)}>
+            <Plus size={15} />
+          </IconButton>
+        </Box>
+        <TextField
+          aria-label="Filter connected projects"
+          placeholder="Filter projects…"
+          value={projectFilter}
+          onChange={(event) => setProjectFilter(event.target.value)}
+          sx={{ my: 1 }}
+        />
+        <List dense disablePadding>
+          {projects.filter((item) => !projectFilter || (item.id + " " + item.name).toLowerCase().includes(projectFilter.toLowerCase())).map((item) => (
+            <ListItemButton
               key={item.id}
+              selected={project === item.id}
               onClick={() => {
                 setProject(item.id);
                 navigate("projects");
               }}
-              className={cn("flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm transition-colors",
-                project === item.id ? "bg-surface-800 text-white" : "text-slate-400 hover:bg-surface-800/60 hover:text-slate-100")}
+              sx={{ borderRadius: 2 }}
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-700 text-xs font-semibold text-emerald-300">{item.name.slice(0, 1)}</span>
-              <span className="min-w-0 flex-1 text-left">
-                <span className="block truncate">{item.name}</span>
-                <small className="block text-[11px] text-slate-600">
-                  {item.roots.length} source folder
-                  {item.roots.length === 1 ? "" : "s"}
-                </small>
-              </span>
-            </button>
+              <Avatar sx={{ width: 28, height: 28, fontSize: "0.8rem", mr: 1.5 }}>{item.name.slice(0, 1)}</Avatar>
+              <ListItemText
+                primary={item.name}
+                secondary={`${item.roots.length} source folder${item.roots.length === 1 ? "" : "s"}`}
+              />
+            </ListItemButton>
           ))}
-          </div>
-        </div>
-        <div className="mt-3 border-t border-line pt-3">
-          <div className="mb-2 flex items-center gap-2 px-3 text-xs text-slate-500">
-            <i className="live-dot" />
-            Running on your PC
-          </div>
-          <a className="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-500 transition-colors hover:text-slate-300" href="http://localhost:18789" target="_blank" rel="noreferrer">
-            OpenClaw controls <ExternalLink size={12} />
-          </a>
-          <a className="flex items-center gap-1.5 px-3 py-1 text-xs text-slate-500 transition-colors hover:text-slate-300" href="http://localhost:5679" target="_blank" rel="noreferrer">
-            n8n workflow editor <ExternalLink size={12} />
-          </a>
-        </div>
-      </aside>
-      <div className="main-shell">
-        <header className="flex h-[74px] items-center justify-between gap-4 border-b border-line bg-surface-950 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2">
-            <button
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-surface-800 hover:text-slate-100 md:hidden"
-              aria-label="Open navigation"
-              onClick={() => setMenu(true)}
-            >
-              <Menu size={22} />
-            </button>
-            <span className="hidden text-sm text-slate-500 sm:inline">{remoteCall ? "Notebook call" : "Workspace"}</span>
-            <ChevronRight size={14} className="hidden text-slate-600 sm:inline" />
-            <label className="sr-only" htmlFor="active-project">
-              Active project
-            </label>
-            <select
-              id="active-project"
-              value={project}
-              onChange={(event) => setProject(event.target.value)}
-              className="max-w-[180px] truncate rounded-lg border border-line bg-surface-900 px-2.5 py-1.5 text-sm text-slate-100 focus:border-emerald-500 focus:outline-none sm:max-w-xs"
-            >
-              {projects.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <button
-              className="inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-slate-950 transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-              onClick={callJarvis}
-              disabled={!voiceStatus.available || !voice.conversationSupported || (view !== "operator" && (!thread || busy.has(key) || historyLoading))}
-            >
-              <Phone size={16} /> <span className="hidden sm:inline">Call JARVIS</span><span className="sm:hidden">Call</span>
-            </button>
-            <span className="hidden items-center gap-1.5 rounded-full border border-line bg-surface-900 px-3 py-1.5 text-xs text-slate-300 md:inline-flex">
-              <Bot size={14} className="text-emerald-400" />
-              {demoMode ? "Demo" : (system?.model || "Connecting assistant")}
-            </span>
-            <button
-              className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-surface-800 hover:text-slate-100"
-              aria-label="Toggle theme"
-              onClick={() =>
-                void savePreferences({
-                  theme: preferences.theme === "dark" ? "light" : "dark",
-                })
-              }
-            >
-              {preferences.theme === "dark" ? (
-                <Sun size={18} />
-              ) : (
-                <Moon size={18} />
-              )}
-            </button>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-700 text-sm font-semibold text-emerald-300">M</span>
-          </div>
-        </header>
-        {toast && (
-          <div
-            className={`toast ${toast.error ? "error" : ""}`}
-            role={toast.error ? "alert" : "status"}
-          >
-            {toast.error ? <CircleHelp size={17} /> : <Check size={17} />}
-            <span>{toast.text}</span>
-            <button
-              className="icon-button"
-              aria-label="Dismiss notification"
-              onClick={() => setToast(null)}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
-        <main className={`content view-${view}`}>
-          {remoteOperator&&<nav className="notebook-project-nav" aria-label="Notebook workspace">
-            <button className="button" onClick={()=>navigate('operator')}>JARVIS Tasks</button>
-            <button className="button" onClick={()=>navigate('projects')}>Projects & connections</button>
-          </nav>}
-          {view === "operator" && <OperatorPanel ref={operatorPanel} voiceId={preferences.voice} />}
-          {view === "firm" && <FirmPortal onTalk={() => demoMode
-            ? notify("Calls and live chat work in the live portal — this demo shows the firm's screens.")
-            : navigate("operator")} />}
-          {view === "fleet" && <FleetAdmin />}
-          {view === "overview" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <p className="section-label">Your work, connected</p>
-                  <h1>What are we building today?</h1>
-                  <p>One assistant for your projects, tools, and ideas.</p>
-                </div>
-                <Button
-                  primary
-                  onClick={() => void newConversation()}
-                  disabled={!project}
-                >
-                  <Plus size={17} />
-                  New conversation
-                </Button>
-              </div>
-              <section className="command-deck">
-                <div className="command-main">
-                  <div className="assistant-emblem">
-                    <Bot size={34} />
-                  </div>
-                  <div>
-                    <h2>Ready when you are.</h2>
-                    <p>
-                      Ask a question, explore a project, or bring a new skill
-                      into your workflow.
-                    </p>
-                  </div>
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      setView("assistant");
-                    }}
-                  >
-                    <input
-                      aria-label="Start a conversation"
-                      placeholder={`What would you like to do with ${selected?.name || "your project"}?`}
-                      value={drafts[key] || ""}
-                      onChange={(event) =>
-                        setDrafts((previous) => ({
-                          ...previous,
-                          [key]: event.target.value,
-                        }))
-                      }
-                    />
-                    <button className="send-circle" aria-label="Open assistant">
-                      <ArrowRight size={20} />
-                    </button>
-                  </form>
-                  <div className="deck-shortcuts">
-                    <button
-                      onClick={() => {
-                        setView("assistant");
-                        setDrafts((previous) => ({
-                          ...previous,
-                          [key]:
-                            "Explain this project’s architecture using its source files.",
-                        }));
-                      }}
-                    >
-                      <Code2 size={15} />
-                      Understand my code
-                    </button>
-                    <button onClick={() => navigate("skills")}>
-                      <Boxes size={15} />
-                      Find a skill
-                    </button>
-                    <button onClick={() => navigate("automations")}>
-                      <Workflow size={15} />
-                      Run a workflow
-                    </button>
-                  </div>
-                </div>
-                <div className="system-panel">
-                  <div className="panel-heading">
-                    <h3>System connections</h3>
-                    <button
-                      className="icon-button"
-                      aria-label="Refresh service health"
-                      onClick={() => void refreshSystem()}
-                    >
-                      <RefreshCw size={16} />
-                    </button>
-                  </div>
-                  {system ? (
-                    system.services.map((service) => (
-                      <div className="service-row" key={service.name}>
-                        <span>
-                          <i className={`status-dot ${service.status}`} />
-                          {service.name}
-                        </span>
-                        <small>
-                          {service.status === "healthy"
-                            ? "Connected"
-                            : "Unavailable"}
-                        </small>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="muted">Checking local services…</p>
-                  )}
-                  <div className="system-foot">
-                    <Monitor size={15} />
-                    Local-first infrastructure
-                  </div>
-                </div>
-              </section>
-              <section className="stats-row">
-                <div>
-                  <FolderOpen size={20} />
-                  <span>
-                    <strong>{projects.length}</strong>
-                    <small>Connected projects</small>
-                  </span>
-                </div>
-                <div>
-                  <Boxes size={20} />
-                  <span>
-                    <strong>
-                      {system ? number(system.catalog.available) : "—"}
-                    </strong>
-                    <small>Discoverable skills</small>
-                  </span>
-                </div>
-                <div>
-                  <ShieldCheck size={20} />
-                  <span>
-                    <strong>
-                      {skillsLoaded
-                        ? skills.filter((item) => item.ready).length
-                        : "—"}
-                    </strong>
-                    <small>Ready assistant skills</small>
-                  </span>
-                </div>
-                <div>
-                  <Activity size={20} />
-                  <span>
-                    <strong>
-                      {operations.filter((item) => running(item.status)).length}
-                    </strong>
-                    <small>Operations in progress</small>
-                  </span>
-                </div>
-              </section>
-              <div className="section-heading">
-                <div>
-                  <h2>Pick up a project</h2>
-                  <p>Use its real files, instructions, and tools.</p>
-                </div>
-                <Button onClick={() => setConnect(true)}>
-                  <Plus size={16} />
-                  Connect project
-                </Button>
-              </div>
-              <div className="project-grid">
-                {projects.map((item) => (
-                  <button
-                    key={item.id}
-                    className="project-card"
-                    onClick={() => {
-                      setProject(item.id);
-                      navigate("projects");
-                    }}
-                  >
-                    <span className="project-avatar large">
-                      {item.name.slice(0, 1)}
-                    </span>
-                    <div>
-                      <h3>{item.name}</h3>
-                      <p>{item.roots.map((root) => root.label).join(" + ")}</p>
-                    </div>
-                    <ArrowRight size={18} />
-                  </button>
-                ))}
-              </div>
-              <section className="library-banner">
-                <div>
-                  <Badge tone="blue">Extensible by design</Badge>
-                  <h2>A growing library of real capabilities.</h2>
-                  <p>
-                    Search upstream skill definitions. Install individual
-                    skills, check their requirements, and use the ones your
-                    assistant is ready to run.
-                  </p>
-                </div>
-                <Button onClick={() => navigate("skills")}>
-                  Explore the library
-                  <ArrowRight size={16} />
-                </Button>
-              </section>
-            </>
-          )}
-          {view === "assistant" && (
-            <div className="assistant-layout">
-              <aside className="thread-panel">
-                <div className="panel-heading">
-                  <h3>Conversations</h3>
-                  <button
-                    className="icon-button"
-                    aria-label="New conversation"
-                    onClick={() => void newConversation()}
-                  >
-                    <Plus size={17} />
-                  </button>
-                </div>
-                {threads.map((item) => (
-                  <button
-                    key={item.thread}
-                    className={`thread-item ${thread === item.thread ? "active" : ""}`}
-                    onClick={() => setThread(item.thread)}
-                  >
-                    <MessageSquare size={15} />
-                    <span>
-                      {item.title}
-                      <small>{when(item.updated)}</small>
-                    </span>
-                  </button>
-                ))}
-                {!threads.length && (
-                  <p className="muted">Connect a project to begin.</p>
-                )}
-              </aside>
-              <section className="chat-panel">
-                <div className="chat-title">
-                  <div>
-                    <span className="assistant-mini">
-                      <Bot size={19} />
-                    </span>
-                    <div>
-                      <h2>JARVIS</h2>
-                      <p>{selected?.name} · source-aware conversation</p>
-                    </div>
-                  </div>
-                  <div className="row">
-                    <button
-                      className="icon-button"
-                      aria-label="Reload conversation"
-                      disabled={historyLoading || !thread}
-                      onClick={() =>
-                        void loadHistory(project, thread).catch(fail)
-                      }
-                    >
-                      <RefreshCw size={17} />
-                    </button>
-                    <Badge tone={voiceStatus.available ? "green" : "neutral"}>
-                      {voiceStatus.available ? "Voice ready" : "Text mode"}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="mobile-thread-picker">
-                  <select
-                    aria-label="Conversation"
-                    value={thread}
-                    onChange={(event) => setThread(event.target.value)}
-                  >
-                    {threads.map((item) => (
-                      <option key={item.thread} value={item.thread}>
-                        {item.title}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    className="icon-button"
-                    aria-label="New mobile conversation"
-                    onClick={() => void newConversation()}
-                  >
-                    <Plus size={18} />
-                  </button>
-                </div>
-                <div
-                  className="messages"
-                  aria-live="polite"
-                  ref={messagesRef}
-                  onScroll={(event) => {
-                    const element = event.currentTarget;
-                    followMessages.current =
-                      element.scrollHeight -
-                        element.scrollTop -
-                        element.clientHeight <
-                      80;
-                  }}
-                >
-                  {historyMore[key] !== undefined && (
-                    <Button
-                      onClick={() =>
-                        void loadHistory(
-                          project,
-                          thread,
-                          historyMore[key],
-                        ).catch(fail)
-                      }
-                    >
-                      <ArrowDown size={14} />
-                      Load earlier messages
-                    </Button>
-                  )}
-                  {historyLoading && (
-                    <div className="loading-row">
-                      <LoaderCircle className="spin" size={18} />
-                      Loading conversation…
-                    </div>
-                  )}
-                  {!historyLoading && !currentMessages.length && (
-                    <Empty icon={Bot} title="Let’s get to work.">
-                      <p>
-                        Ask about your project, use a ready skill, or dictate a
-                        message.
-                      </p>
-                      <div className="suggestion-grid">
-                        {[
-                          "What can you help me do with this project?",
-                          "Find the verification commands for this project.",
-                          "Summarize the current Git changes.",
-                        ].map((text) => (
-                          <button
-                            key={text}
-                            onClick={() =>
-                              setDrafts((previous) => ({
-                                ...previous,
-                                [key]: text,
-                              }))
-                            }
-                          >
-                            {text}
-                            <ArrowRight size={14} />
-                          </button>
-                        ))}
-                      </div>
-                    </Empty>
-                  )}
-                  {currentMessages.map((message) => (
-                    <article
-                      key={message.id}
-                      className={`message ${message.role} ${message.error ? "failed" : ""}`}
-                    >
-                      <div className="message-avatar">
-                        {message.role === "assistant" ? <Bot size={18} /> : "M"}
-                      </div>
-                      <div className="message-body">
-                        <div className="message-meta">
-                          <strong>
-                            {message.role === "assistant" ? "JARVIS" : "You"}
-                          </strong>
-                          {message.streaming && (
-                            <span>
-                              <LoaderCircle className="spin" size={12} />
-                              Working
-                            </span>
-                          )}
-                          {message.error && (
-                            <Badge tone="amber">Check run state</Badge>
-                          )}
-                        </div>
-                        {message.text ? (
-                          <RichText text={message.text} />
-                        ) : (
-                          <div className="thinking">
-                            <span />
-                            <span />
-                            <span />
-                            Working with your project tools…
-                          </div>
-                        )}
-                        {message.role === "assistant" &&
-                          message.text &&
-                          !message.streaming && (
-                            <div className="message-actions">
-                              <button
-                                onClick={() => {
-                                  void navigator.clipboard
-                                    .writeText(message.text)
-                                    .then(() => notify("Answer copied."), fail);
-                                }}
-                              >
-                                <Copy size={13} />
-                                Copy
-                              </button>
-                              <button
-                                disabled={
-                                   !voiceStatus.available || voice.recording || voice.conversationActive
-                                }
-                                onClick={() => void voice.speak(message.text)}
-                              >
-                                <Volume2 size={14} />
-                                Read aloud
-                              </button>
-                            </div>
-                          )}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-                <div className="composer-area">
-                  <form
-                    className={`composer ${voice.recording ? "listening" : ""} ${voice.conversationActive ? "conversation-composer" : ""}`}
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void sendChat(drafts[key] || "").catch(fail);
-                    }}
-                  >
-                    <textarea
-                      aria-label="Message JARVIS"
-                      placeholder={
-                        voice.phase === "recording"
-                          ? "Listening…"
-                          : `Ask JARVIS about ${selected?.name || "your work"}…`
-                      }
-                      rows={3}
-                      disabled={voice.conversationActive}
-                      maxLength={12000}
-                      value={drafts[key] || ""}
-                      onChange={(event) =>
-                        setDrafts((previous) => ({
-                          ...previous,
-                          [key]: event.target.value,
-                        }))
-                      }
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" && !event.shiftKey) {
-                          event.preventDefault();
-                          if (!voice.recording && !voice.conversationActive)
-                            void sendChat(drafts[key] || "").catch(fail);
-                        }
-                      }}
-                    />
-                    <div className="composer-tools">
-                      <div className="row">
-                        <button
-                          type="button"
-                          className={`icon-button ${voice.recording ? "recording" : ""}`}
-                          aria-label={
-                            voice.phase === "recording"
-                              ? "Stop recording"
-                              : voice.recording
-                                ? "Cancel dictation"
-                                : "Record dictation"
-                          }
-                          disabled={
-                             !voiceStatus.available ||
-                             voice.conversationActive ||
-                            !voice.supported ||
-                            !thread
-                          }
-                          onClick={() => void voice.record()}
-                        >
-                          {voice.recording ? (
-                            <Square size={18} />
-                          ) : (
-                            <Mic size={19} />
-                          )}
-                        </button>
-                        <span className="voice-caption">{voice.conversationActive ? "Your spoken turns appear in the chat above." : voice.status}</span>
-                        {voice.playing && !voice.conversationActive && (
-                          <button
-                            type="button"
-                            className="text-button"
-                            onClick={voice.stopPlayback}
-                          >
-                            Stop playback
-                          </button>
-                        )}
-                      </div>
-                      {busy.has(key) ? (
-                        <Button onClick={() => void stopChat()}>
-                          <Square size={15} />
-                          Stop
-                        </Button>
-                      ) : (
-                        <button
-                          className="send-circle"
-                          type="submit"
-                          aria-label="Send message"
-                          disabled={
-                             !thread || !drafts[key]?.trim() || voice.recording || voice.conversationActive
-                          }
-                        >
-                          <Send size={18} />
-                        </button>
-                      )}
-                    </div>
-                  </form>
-                  <div className="composer-note">
-                    <span>
-                      Answers use connected tools and project instructions.
-                    </span>
-                    <span>Enter to send · Shift Enter for a new line</span>
-                  </div>
-                </div>
-              </section>
-            </div>
-          )}
-          {view === "projects" && (
-            <>
-            <ConnectionCatalog selected={project} onSelect={setProject}/>
-            <ProjectView
-              project={selected}
-              readOnly={remoteCall}
-              onConnect={() => setConnect(true)}
-              onChat={() => navigate(remoteOperator?"operator":"assistant")}
-              onError={fail}
-              onNotice={notify}
-              onReview={(review) => {
-                setReviews((previous) => [review, ...previous]);
-                navigate("runs");
-              }}
-            />
-            </>
-          )}
-          {view === "skills" && (
-            <SkillsView
-              skills={skills}
-              system={system}
-              onRefresh={() => {
-                void refreshSkills();
-                void refreshSystem();
-              }}
-              onDetail={(item) => setDetail(item)}
-              onUse={useSkill}
-              onEnable={(name) => {
-                void startOperation("/api/skills/enable", { name });
-              }}
-              onSync={() => {
-                void startOperation("/api/catalog/sync", {});
-              }}
-              onError={fail}
-            />
-          )}
-          {view === "automations" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <h1>Automations</h1>
-                  <p>Turn repeatable work into a reliable workflow.</p>
-                </div>
-                <a
-                  className="button"
-                  href="http://localhost:5679"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open n8n
-                  <ExternalLink size={16} />
-                </a>
-              </div>
-              <div className="workflow-feature">
-                <div className="workflow-icon">
-                  <Workflow size={36} />
-                </div>
-                <div>
-                  <Badge tone="green">Connected</Badge>
-                  <h2>Assistant-to-workflow demonstration</h2>
-                  <p>
-                    Call the authenticated n8n workflow and verify its request
-                    ID. The result is explicitly marked as synthetic data.
-                  </p>
-                  <div className="flow-chain">
-                    <span>JARVIS</span>
-                    <ChevronRight size={16} />
-                    <span>Authenticated webhook</span>
-                    <ChevronRight size={16} />
-                    <span>Verified result</span>
-                  </div>
-                  <Button
-                    primary
-                    onClick={() => {
-                      void startOperation("/api/workflows/demo", {});
-                    }}
-                  >
-                    Run connection test
-                    <Play size={15} />
-                  </Button>
-                </div>
-              </div>
-              <div className="section-heading">
-                <div>
-                  <h2>Connect your work apps</h2>
-                  <p>
-                    These integrations need their own accounts and workflow
-                    configuration.
-                  </p>
-                </div>
-              </div>
-              <div className="integration-grid">
-                {[
-                  [
-                    "Email & calendar",
-                    "Outlook, Gmail, meetings and daily briefings",
-                  ],
-                  [
-                    "Project management",
-                    "GitHub, task lists and project notifications",
-                  ],
-                  [
-                    "Documents & knowledge",
-                    "Source collections, notes and research workflows",
-                  ],
-                  [
-                    "Business applications",
-                    "Your application APIs and operational reports",
-                  ],
-                ].map(([name, description]) => (
-                  <div className="integration-card" key={name}>
-                    <Workflow size={22} />
-                    <h3>{name}</h3>
-                    <p>{description}</p>
-                    <Badge tone="amber">Setup required</Badge>
-                    <a
-                      href="http://localhost:5679"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Configure in n8n
-                      <ExternalLink size={14} />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-          {view === "runs" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <h1>Run history</h1>
-                  <p>
-                    Real operation receipts and the latest reviews for{" "}
-                    {selected?.name}.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => {
-                    void refreshRuns();
-                    if (project)
-                      void api<{ jobs: Review[] }>(
-                        "/api/reviews?project=" + encodeURIComponent(project),
-                      ).then((result) => setReviews(result.jobs), fail);
-                  }}
-                >
-                  <RefreshCw size={16} />
-                  Refresh
-                </Button>
-              </div>
-              <div className="run-list">
-                {operations.map((item) => (
-                  <button
-                    key={item.id}
-                    className="run-row"
-                    onClick={() => setRunDetail(item)}
-                  >
-                    <div className={`run-icon ${item.status}`}>
-                      {running(item.status) ? (
-                        <LoaderCircle className="spin" size={19} />
-                      ) : item.status === "completed" ? (
-                        <Check size={19} />
-                      ) : (
-                        <Activity size={19} />
-                      )}
-                    </div>
-                    <span className="run-name">
-                      <strong>{item.title}</strong>
-                      <small>
-                        {when(item.created)} · {item.kind}
-                      </small>
-                    </span>
-                    <Badge
-                      tone={
-                        item.status === "completed"
-                          ? "green"
-                          : running(item.status)
-                            ? "blue"
-                            : "amber"
-                      }
-                    >
-                      {item.status}
-                    </Badge>
-                    <ChevronRight size={17} />
-                  </button>
-                ))}
-                {reviews.map((item) => (
-                  <button
-                    key={item.id}
-                    className="run-row"
-                    onClick={() => setRunDetail(item)}
-                  >
-                    <div className="run-icon">
-                      <Code2 size={19} />
-                    </div>
-                    <span className="run-name">
-                      <strong>OpenCode review</strong>
-                      <small>
-                        {item.project} · {item.id.slice(0, 10)}
-                      </small>
-                    </span>
-                    <Badge
-                      tone={item.status === "completed" ? "green" : "amber"}
-                    >
-                      {item.status}
-                    </Badge>
-                    <ChevronRight size={17} />
-                  </button>
-                ))}
-                {!operations.length && !reviews.length && (
-                  <Empty icon={Activity} title="Your next run starts here.">
-                    <p>
-                      Run a workflow, review source, or install a skill to see
-                      its result.
-                    </p>
-                    <Button onClick={() => navigate("automations")}>
-                      Open automations
-                    </Button>
-                  </Empty>
-                )}
-              </div>
-            </>
-          )}
-          {view === "settings" && (
-            <>
-              <div className="page-heading">
-                <div>
-                  <h1>Settings</h1>
-                  <p>Make the workspace fit the way you work.</p>
-                </div>
-              </div>
-              <div className="settings-grid">
-                <section className="panel">
-                  <h2>Appearance</h2>
-                  <p className="muted">Saved on this PC.</p>
-                  <div className="theme-options">
-                    <button
-                      className={preferences.theme === "dark" ? "active" : ""}
-                      onClick={() => void savePreferences({ theme: "dark" })}
-                    >
-                      <Moon size={22} />
-                      Dark workspace
-                    </button>
-                    <button
-                      className={preferences.theme === "light" ? "active" : ""}
-                      onClick={() => void savePreferences({ theme: "light" })}
-                    >
-                      <Sun size={22} />
-                      Light workspace
-                    </button>
-                  </div>
-                </section>
-                <section className="panel">
-                  <h2>Voice preferences</h2>
-                  <label className="field-label" htmlFor="reading-voice">
-                    Reading voice
-                  </label>
-                  <select
-                    id="reading-voice"
-                    value={preferences.voice}
-                    onChange={(event) =>
-                      void savePreferences({ voice: event.target.value })
-                    }
-                  >
-                    {Object.entries(voices).map(([id, name]) => (
-                      <option key={id} value={id}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                  <label className="toggle-row">
-                    <span>
-                      <strong>Speak new replies</strong>
-                      <small>
-                        Automatically read answers in the active chat.
-                      </small>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={preferences.auto_speak}
-                      onChange={(event) =>
-                        void savePreferences({
-                          auto_speak: event.target.checked,
-                        })
-                      }
-                    />
-                  </label>
-                  <label className="toggle-row">
-                    <span>
-                      <strong>Send after dictation</strong>
-                      <small>
-                        Submit recognized speech when recording stops.
-                      </small>
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={preferences.auto_send_voice}
-                      onChange={(event) =>
-                        void savePreferences({
-                          auto_send_voice: event.target.checked,
-                        })
-                      }
-                    />
-                  </label>
-                  <Badge tone={voiceStatus.available ? "green" : "amber"}>
-                    {voiceStatus.available
-                      ? "Local speech models ready"
-                      : "Voice unavailable"}
-                  </Badge>
-                </section>
-                <section className="panel">
-                  <h2>Assistant engine</h2>
-                  <div className="engine-card">
-                    <Bot size={26} />
-                    <div>
-                      <strong>{system?.model || "OpenClaw default"}</strong>
-                      <small>Current configured model</small>
-                    </div>
-                  </div>
-                  <p className="muted">
-                    Strong source reviews use the existing OpenCode account.
-                    Model/provider configuration belongs to OpenClaw.
-                  </p>
-                  <a
-                    className="button"
-                    href="http://localhost:18789"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open assistant controls
-                    <ExternalLink size={15} />
-                  </a>
-                </section>
-                <section className="panel">
-                  <div className="panel-heading">
-                    <h2>Connections</h2>
-                    <button
-                      className="icon-button"
-                      aria-label="Refresh connections"
-                      onClick={() => void refreshSystem()}
-                    >
-                      <RefreshCw size={17} />
-                    </button>
-                  </div>
-                  {system?.services.map((service) => (
-                    <div className="service-row" key={service.name}>
-                      <span>
-                        <i className={`status-dot ${service.status}`} />
-                        {service.name}
-                      </span>
-                      <Badge
-                        tone={service.status === "healthy" ? "green" : "amber"}
-                      >
-                        {service.status}
-                      </Badge>
-                    </div>
-                  ))}
-                  <p className="muted">
-                    Command Center {system?.version || "0.3.0"}
-                  </p>
-                  <a href="/classic" target="_blank" rel="noreferrer">
-                    Open the earlier interface
-                    <ExternalLink size={13} />
-                  </a>
-                </section>
-              </div>
-            </>
-          )}
-        </main>
-      </div>
-      {connect && (
-        <ConnectModal
-          onClose={() => setConnect(false)}
-          onConnect={async (value) => {
-            await api("/api/projects", value);
-            await refreshProjects();
-            setConnect(false);
-            notify("Project connected.");
-          }}
-        />
-      )}
-      {detail && (
-        <Modal title={detail.name} onClose={() => setDetail(null)}>
-          <div className="detail-meta">
-            <Badge tone="blue">Community skill</Badge>
-            <span>@{detail.owner}</span>
-            <span>v{detail.version || "unknown"}</span>
-          </div>
-          <p className="detail-description">{detail.description}</p>
-          <div className="tags">
-            {detail.topics.map((topic) => (
-              <Badge key={topic}>{topic}</Badge>
-            ))}
-          </div>
-          <div className="detail-facts">
-            <div>
-              <small>License</small>
-              <strong>{detail.license}</strong>
-            </div>
-            <div>
-              <small>Upstream downloads</small>
-              <strong>{number(detail.downloads)}</strong>
-            </div>
-            <div>
-              <small>Availability</small>
-              <strong>Catalog definition</strong>
-            </div>
-          </div>
-          {detail.requirements.length > 0 && (
-            <>
-              <h3>Published setup requirements</h3>
-              <ul>
-                {detail.requirements.map((item) => (
-                  <li key={item.key}>
-                    <code>{item.key}</code>{" "}
-                    {item.required ? "required" : "optional"}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          <p className="muted">
-            Installation uses OpenClaw’s registry checks. Actual readiness is
-            shown in the installed inventory after requirements and agent
-            visibility are checked.
-          </p>
-          <div className="modal-actions">
-            <a
-              className="button"
-              href={detail.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View upstream source
-              <ExternalLink size={15} />
-            </a>
-            <Button
-              primary
-              disabled={!detail.version}
-              onClick={() => {
-                void startOperation("/api/catalog/install", { id: detail.id });
-                setDetail(null);
-              }}
-            >
-              Install selected version
-              <Download size={15} />
-            </Button>
-          </div>
-        </Modal>
-      )}
-      {runDetail && (
-        <Modal
-          title={"title" in runDetail ? runDetail.title : "OpenCode review"}
-          onClose={() => setRunDetail(null)}
+        </List>
+      </Box>
+      <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "success.main" }} />
+          <Typography variant="body2">Running on your PC</Typography>
+        </Box>
+        <Button size="small" endIcon={<ExternalLink size={13} />} href="http://localhost:18789" target="_blank" sx={{ mt: 0.5 }}>
+          OpenClaw controls
+        </Button>
+        <Button size="small" endIcon={<ExternalLink size={13} />} href="http://localhost:5679" target="_blank">
+          n8n workflow editor
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
+      <Box sx={{ display: "flex", minHeight: "100vh" }}>
+        <Drawer
+          variant="temporary"
+          open={menu}
+          onClose={() => setMenu(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{ display: { xs: "block", md: "none" }, "& .MuiDrawer-paper": { width: DRAWER_WIDTH } }}
         >
-          <Badge tone={runDetail.status === "completed" ? "green" : "amber"}>
-            {runDetail.status}
-          </Badge>
-          {"result" in runDetail ? (
-            <pre className="result-json">
-              {JSON.stringify(runDetail.result, null, 2)}
-            </pre>
-          ) : (
-            <>
-              <RichText
-                text={
-                  runDetail.answer ||
-                  runDetail.error ||
-                  (runDetail.errors || []).join("\n") ||
-                  "The review has not returned a result yet."
+          {drawerContent}
+        </Drawer>
+        <Drawer
+          variant="permanent"
+          sx={{ display: { xs: "none", md: "block" }, "& .MuiDrawer-paper": { width: DRAWER_WIDTH } }}
+          open
+        >
+          {drawerContent}
+        </Drawer>
+        <Box sx={{ flexGrow: 1, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          <AppBar position="sticky" color="default" elevation={1} sx={{ borderRadius: 0 }}>
+            <Toolbar sx={{ gap: 1.5 }}>
+              <IconButton
+                aria-label="Open navigation"
+                onClick={() => setMenu(true)}
+                sx={{ display: { md: "none" } }}
+              >
+                <Menu size={22} />
+              </IconButton>
+              <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", sm: "block" } }}>
+                {remoteCall ? "Notebook call" : "Workspace"}
+              </Typography>
+              <ChevronRight size={14} />
+              <FormControl sx={{ minWidth: 160, maxWidth: 260 }}>
+                <InputLabel id="active-project-label">Active project</InputLabel>
+                <Select
+                  labelId="active-project-label"
+                  id="active-project"
+                  label="Active project"
+                  value={project}
+                  onChange={(event) => setProject(String(event.target.value))}
+                >
+                  {projects.map((item) => (
+                    <MenuItem key={item.id} value={item.id}>
+                      {item.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <Box sx={{ flexGrow: 1 }} />
+              <Button
+                variant="contained"
+                startIcon={<Phone size={18} />}
+                onClick={callJarvis}
+                disabled={!voiceStatus.available || !voice.conversationSupported || (view !== "operator" && (!thread || busy.has(key) || historyLoading))}
+              >
+                Call JARVIS
+              </Button>
+              <Chip icon={<Bot size={15} />} label={demoMode ? "Demo" : (system?.model || "Connecting assistant")} variant="outlined" sx={{ display: { xs: "none", lg: "flex" } }} />
+              <IconButton
+                aria-label="Toggle theme"
+                onClick={() =>
+                  void savePreferences({
+                    theme: preferences.theme === "dark" ? "light" : "dark",
+                  })
                 }
-              />
-              {runDetail.artifacts && (
-                <p className="path-text">{runDetail.artifacts}</p>
-              )}
-            </>
-          )}
-          <p className="muted">Run ID: {runDetail.id}</p>
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-function ConnectModal({
-  onClose,
-  onConnect,
-}: {
-  onClose: () => void;
-  onConnect: (value: {
-    name: string;
-    roots: { path: string; label?: string }[];
-  }) => Promise<void>;
-}) {
-  const [name, setName] = useState(""),
-    [folders, setFolders] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const roots = folders
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-          const at = line.indexOf("=");
-          return at > 0
-            ? {
-                label: line.slice(0, at).trim(),
-                path: line.slice(at + 1).trim(),
-              }
-            : { path: line };
-        });
-      await onConnect({ name: name.trim(), roots });
-    } catch (error) {
-      setError(errorText(error));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <Modal title="Connect a project" onClose={onClose}>
-      <form className="form-stack" onSubmit={submit}>
-        <p>Connect a local folder or several repositories as one workspace.</p>
-        <label>
-          Project name
-          <input
-            autoFocus
-            required
-            maxLength={100}
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="My project"
-          />
-        </label>
-        <label>
-          Folders
-          <textarea
-            required
-            rows={4}
-            value={folders}
-            onChange={(event) => setFolders(event.target.value)}
-            placeholder={
-              "backend=C:\\Projects\\my-api\nfrontend=C:\\Projects\\my-web"
-            }
-          />
-        </label>
-        <small className="muted">
-          One path per line. Labels such as backend= and frontend= are optional.
-        </small>
-        {error && (
-          <p className="error-text" role="alert">
-            {error}
-          </p>
-        )}
-        <Button type="submit" primary disabled={busy}>
-          {busy ? (
-            <LoaderCircle size={16} className="spin" />
-          ) : (
-            <FolderOpen size={16} />
-          )}
-          Connect project
-        </Button>
-      </form>
-    </Modal>
-  );
-}
-
-function SkillsView({
-  skills,
-  system,
-  onRefresh,
-  onDetail,
-  onUse,
-  onEnable,
-  onSync,
-  onError,
-}: {
-  skills: InstalledSkill[];
-  system: System | null;
-  onRefresh: () => void;
-  onDetail: (item: Capability) => void;
-  onUse: (name: string) => void;
-  onEnable: (name: string) => void;
-  onSync: () => void;
-  onError: (error: unknown) => void;
-}) {
-  const [mode, setMode] = useState<"catalog" | "installed" | "ready">(
-    "catalog",
-  );
-  const [query, setQuery] = useState(""),
-    [category, setCategory] = useState("");
-  const [page, setPage] = useState(0);
-  useEffect(() => { window.scrollTo(0, 0); }, [page]);
-  const [data, setData] = useState<CatalogPage | null>(null),
-    [loading, setLoading] = useState(false);
-  useEffect(() => {
-    if (mode !== "catalog") return;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      setLoading(true);
-      api<CatalogPage>(
-        `/api/catalog?${new URLSearchParams({ q: query, category, page: String(page), limit: "24" })}`,
-        undefined,
-        { signal: controller.signal },
-      )
-        .then(setData, onError)
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    }, 180);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [mode, query, category, page, onError]);
-  const visible = skills.filter(
-    (item) =>
-      (mode !== "ready" || item.ready) &&
-      `${item.name} ${item.description}`
-        .toLowerCase()
-        .includes(query.toLowerCase()),
-  );
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <h1>Skills library</h1>
-          <p>Find the right capability. Connect what you need.</p>
-        </div>
-        <Button onClick={onSync}>
-          <RefreshCw size={16} />
-          Expand catalog
-        </Button>
-      </div>
-      <div className="library-summary">
-        <div>
-          <Boxes size={26} />
-          <span>
-            <strong>
-              {number(system?.catalog.available || data?.total || 0)}
-            </strong>
-            <small>Real upstream definitions indexed</small>
-          </span>
-        </div>
-        <p>
-          Catalog availability and installed readiness are different states.
-          Requirements are checked against your running assistant.
-        </p>
-      </div>
-      <div className="library-tabs">
-        <button
-          className={mode === "catalog" ? "active" : ""}
-          onClick={() => {
-            setMode("catalog");
-            setPage(0);
-          }}
-        >
-          Discover
-        </button>
-        <button
-          className={mode === "installed" ? "active" : ""}
-          onClick={() => setMode("installed")}
-        >
-          Installed <span>{skills.length}</span>
-        </button>
-        <button
-          className={mode === "ready" ? "active" : ""}
-          onClick={() => setMode("ready")}
-        >
-          Ready <span>{skills.filter((item) => item.ready).length}</span>
-        </button>
-        <button className="refresh-inventory" onClick={onRefresh}>
-          <RefreshCw size={14} />
-          Refresh inventory
-        </button>
-      </div>
-      <div className="catalog-toolbar">
-        <div className="search-field">
-          <Search size={18} />
-          <input
-            id="catalog-search"
-            aria-label="Search skills"
-            placeholder="Search coding, email, research, design…"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(0);
-            }}
-          />
-          {query && (
-            <button
-              aria-label="Clear search"
-              className="icon-button"
-              onClick={() => {
-                setQuery("");
-                setPage(0);
-              }}
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-        {mode === "catalog" && (
-          <select
-            aria-label="Skill category"
-            value={category}
-            onChange={(event) => {
-              setCategory(event.target.value);
-              setPage(0);
-            }}
-          >
-            <option value="">All topics</option>
-            {[
-              "coding",
-              "automation",
-              "research",
-              "design",
-              "productivity",
-              "github",
-              "calendar",
-              "email",
-              "data",
-              "health",
-            ].map((topic) => (
-              <option key={topic} value={topic}>
-                {topic}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
-      {mode === "catalog" ? (
-        <>
-          <div className="catalog-count">
-            <span>
-              {loading
-                ? "Searching…"
-                : `${number(data?.total || 0)} matching definitions`}
-            </span>
-            <span>ClawHub registry · paginated locally</span>
-          </div>
-          <div className="skill-grid">
-            {data?.items.map((item) => (
-              <article className="skill-card" key={item.id}>
-                <div className="skill-card-head">
-                  <span className="skill-icon">
-                    <Boxes size={20} />
-                  </span>
-                  <Badge tone="blue">Available</Badge>
-                </div>
-                <h3>{item.name}</h3>
-                <small className="publisher">@{item.owner}</small>
-                <p>
-                  {item.description ||
-                    "Open the upstream definition for this capability."}
-                </p>
-                <div className="tags">
-                  {item.topics.slice(0, 2).map((topic) => (
-                    <Badge key={topic}>{topic}</Badge>
-                  ))}
-                </div>
-                <div className="skill-card-foot">
-                  <span>
-                    <Download size={13} />
-                    {number(item.downloads)}
-                  </span>
-                  <button onClick={() => onDetail(item)}>
-                    View skill
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-          {!loading && !data?.items.length && (
-            <Empty icon={Search} title="No matching skills">
-              <p>Try a broader search or expand the catalog.</p>
-            </Empty>
-          )}
-          <div className="pagination">
-            <Button
-              disabled={page === 0 || loading}
-              onClick={() => setPage((value) => value - 1)}
-            >
-              <ArrowLeft size={15} />
-              Previous
-            </Button>
-            <span>
-              Page {page + 1}
-              {data
-                ? ` of ${Math.max(1, Math.ceil(data.total / data.limit))}`
-                : ""}
-            </span>
-            <Button
-              disabled={!data?.has_more || loading}
-              onClick={() => setPage((value) => value + 1)}
-            >
-              Next
-              <ArrowRight size={15} />
-            </Button>
-          </div>
-        </>
-      ) : (
-        <div className="skill-grid">
-          {visible.map((item) => {
-            const missing = Object.entries(item.missing || {}).flatMap(
-              ([kind, values]) => values.map((value) => `${kind}: ${value}`),
-            );
-            return (
-              <article className="skill-card" key={item.name}>
-                <div className="skill-card-head">
-                  <span className="skill-icon">
-                    <ShieldCheck size={20} />
-                  </span>
-                  <Badge tone={item.ready ? "green" : "amber"}>
-                    {item.ready
-                      ? "Ready"
-                      : missing.length
-                        ? "Setup required"
-                        : "Not enabled"}
-                  </Badge>
-                </div>
-                <h3>{item.name}</h3>
-                <small className="publisher">
-                  {item.source.replace("openclaw-", "")}
-                </small>
-                <p>{item.description}</p>
-                {missing.length > 0 && (
-                  <div className="requirements">
-                    {missing.slice(0, 4).join(" · ")}
-                  </div>
-                )}
-                <div className="skill-card-foot">
-                  <span>
-                    {item.modelVisible
-                      ? "Visible to assistant"
-                      : "Agent visibility off"}
-                  </span>
-                  {item.ready ? (
-                    <button onClick={() => onUse(item.name)}>
-                      Use in chat
-                      <ArrowRight size={14} />
-                    </button>
-                  ) : (
-                    <button
-                      disabled={missing.length > 0}
-                      onClick={() => onEnable(item.name)}
-                    >
-                      Enable
-                      <Zap size={14} />
-                    </button>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-    </>
-  );
-}
-
-function ProjectView({
-  project,
-  readOnly=false,
-  onConnect,
-  onChat,
-  onError,
-  onNotice,
-  onReview,
-}: {
-  project: Project | undefined;
-  readOnly?:boolean;
-  onConnect: () => void;
-  onChat: () => void;
-  onError: (error: unknown) => void;
-  onNotice: (message: string, error?: boolean) => void;
-  onReview: (review: Review) => void;
-}) {
-  const [overview, setOverview] = useState<Overview | null>(null),
-    [root, setRoot] = useState(""),
-    [folder, setFolder] = useState(""),
-    [tree, setTree] = useState<Tree | null>(null),
-    [file, setFile] = useState<SourceFile | null>(null),
-    [query, setQuery] = useState(""),
-    [search, setSearch] = useState<SearchResult | null>(null);
-  const [tab, setTab] = useState<"overview" | "source" | "review">("overview"),
-    [reviewFiles, setReviewFiles] = useState(""),
-    [reviewTask, setReviewTask] = useState(""),
-    [reviewMode, setReviewMode] = useState("review"),
-    [reviewBusy, setReviewBusy] = useState(false);
-  const epoch = useRef(0);
-  const projectEpoch = useRef(0);
-  const sequence = useRef(0);
-  useEffect(() => {
-    epoch.current++;
-    const current = ++projectEpoch.current;
-    setRoot(project?.roots[0]?.id || "");
-    setFolder("");
-    setFile(null);
-    setTree(null);
-    setSearch(null);
-    setOverview(null);
-    setTab("overview");
-    setReviewFiles("");
-    setReviewTask("");
-    if (!project) return;
-    api<Overview>("/api/tool", {
-      action: "overview",
-      project: project.id,
-    }).then((value) => {
-      if (projectEpoch.current === current) setOverview(value);
-    }, onError);
-  }, [project?.id, onError]);
-  useEffect(() => {
-    if (!project || !root || tab !== "source") return;
-    const current = epoch.current;
-    const controller = new AbortController();
-    setTree(null);
-    api<Tree>(
-      "/api/tool",
-      { action: "tree", project: project.id, root, path: folder },
-      { signal: controller.signal },
-    ).then((value) => {
-      if (epoch.current === current) setTree(value);
-    }, onError);
-    return () => controller.abort();
-  }, [project, root, folder, tab, onError]);
-  async function read(path: string, start = 1) {
-    if (!project) return;
-    const current = epoch.current,
-      n = ++sequence.current;
-    try {
-      const result = await api<SourceFile>("/api/tool", {
-        action: "read",
-        project: project.id,
-        root,
-        path,
-        start,
-        limit: 160,
-      });
-      if (epoch.current === current && sequence.current === n) setFile(result);
-    } catch (error) {
-      onError(error);
-    }
-  }
-  async function searchSource(event: FormEvent) {
-    event.preventDefault();
-    if (!project) return;
-    const current = epoch.current;
-    try {
-      const result = await api<SearchResult>("/api/tool", {
-        action: "search",
-        project: project.id,
-        root,
-        query,
-      });
-      if (epoch.current === current) setSearch(result);
-    } catch (error) {
-      onError(error);
-    }
-  }
-  if (!project)
-    return (
-      <Empty icon={FolderOpen} title="Connect your first project">
-        <p>Give JARVIS a source folder to work with.</p>
-        {!readOnly&&<Button primary onClick={onConnect}>
-          Connect project
-        </Button>}
-      </Empty>
-    );
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <h1>{project.name}</h1>
-          <p>
-            Connected source, live repository context, and focused coding tools.
-          </p>
-        </div>
-        <div className="row">
-          {!readOnly&&<Button onClick={onConnect}>
-            <Plus size={16} />
-            Connect another
-          </Button>}
-          <Button primary onClick={onChat}>
-            <MessageSquare size={16} />
-            Ask about this project
-          </Button>
-        </div>
-      </div>
-      <div className="project-toolbar">
-        <label htmlFor="source-root">Source folder</label>
-        <select
-          id="source-root"
-          value={root}
-          onChange={(event) => {
-            epoch.current++;
-            setRoot(event.target.value);
-            setFolder("");
-            setFile(null);
-            setSearch(null);
-            setTree(null);
-            setReviewFiles("");
-          }}
-        >
-          {project.roots.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-        {!readOnly&&<Button
-          onClick={() => {
-            void api<{ folder: string }>("/api/coding/open", {
-              project: project.id,
-              root,
-            }).then(
-              (result) => onNotice("Opened OpenCode in " + result.folder),
-              onError,
-            );
-          }}
-        >
-          <Terminal size={16} />
-          Open coding session
-        </Button>}
-      </div>
-      <div className="library-tabs">
-        <button
-          className={tab === "overview" ? "active" : ""}
-          onClick={() => setTab("overview")}
-        >
-          Overview
-        </button>
-        <button
-          className={tab === "source" ? "active" : ""}
-          onClick={() => setTab("source")}
-        >
-          Source explorer
-        </button>
-        {!readOnly&&<button
-          className={tab === "review" ? "active" : ""}
-          onClick={() => setTab("review")}
-        >
-          Strong review
-        </button>}
-      </div>
-      {tab === "overview" && (
-        <div className="root-grid">
-          {overview ? (
-            overview.roots.map((item) => (
-              <article className="panel root-panel" key={item.id}>
-                <div className="panel-heading">
-                  <h2>
-                    <Folder size={20} />
-                    {item.label}
-                  </h2>
-                  <Badge tone={item.available ? "green" : "amber"}>
-                    {item.available ? "Connected" : "Unavailable"}
-                  </Badge>
-                </div>
-                <p className="path-text">{item.path}</p>
-                {item.available ? (
-                  <>
-                    <div className="tags">
-                      {item.stack?.map((value) => (
-                        <Badge key={value} tone="blue">
-                          {value}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="root-stats">
-                      <div>
-                        <strong>{number(item.source_files || 0)}</strong>
-                        <small>
-                          Source files{item.index_truncated ? " (bounded)" : ""}
-                        </small>
-                      </div>
-                      <div>
-                        <strong>{item.git?.change_count || 0}</strong>
-                        <small>Changed source paths</small>
-                      </div>
-                    </div>
-                    <p className="branch">
-                      <GitBranch size={16} />
-                      {item.git?.branch || "Local folder"}
-                      {item.git?.head && <code>{item.git.head}</code>}
-                    </p>
-                    {item.git?.changes.slice(0, 6).map((change) => (
-                      <div className="change" key={change.path}>
-                        <code>{change.status}</code>
-                        <span>{change.path}</span>
-                      </div>
-                    ))}
-                    {item.instructions?.map((instruction) => (
-                      <details className="instruction" key={instruction.path}>
-                        <summary>
-                          <BookOpen size={14} />
-                          {instruction.path}
-                        </summary>
-                        <pre>{instruction.content}</pre>
-                        {instruction.truncated && (
-                          <small>
-                            Preview is truncated. Read the source file for more.
-                          </small>
-                        )}
-                      </details>
-                    ))}
-                  </>
-                ) : (
-                  <p className="error-text">{item.error}</p>
-                )}
-              </article>
-            ))
-          ) : (
-            <div className="loading-row">
-              <LoaderCircle className="spin" size={19} />
-              Reading project context…
-            </div>
-          )}
-        </div>
-      )}
-      {tab === "source" && (
-        <>
-          <form className="source-search" onSubmit={searchSource}>
-            <div className="search-field">
-              <Search size={17} />
-              <input
-                aria-label="Search project source"
-                value={query}
-                minLength={2}
-                maxLength={200}
-                required
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search filenames or code…"
-              />
-            </div>
-            <Button type="submit" primary>
-              Search source
-            </Button>
-          </form>
-          <div className="source-layout">
-            <div className="file-tree">
-              <div className="file-tree-head">
-                <button
-                  className="icon-button"
-                  aria-label="Parent folder"
-                  onClick={() =>
-                    setFolder((value) =>
-                      value.split("/").slice(0, -1).join("/"),
-                    )
-                  }
-                >
-                  <ArrowLeft size={15} />
-                </button>
-                <span>/{folder}</span>
-              </div>
-              {tree ? (
-                tree.entries.map((entry) => (
-                  <button
-                    className="file-entry"
-                    key={entry.path}
-                    onClick={() =>
-                      entry.kind === "folder"
-                        ? setFolder(entry.path)
-                        : void read(entry.path)
-                    }
-                  >
-                    {entry.kind === "folder" ? (
-                      <Folder size={15} />
-                    ) : (
-                      <FileCode2 size={15} />
-                    )}
-                    <span>{entry.name}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="loading-row">
-                  <LoaderCircle className="spin" size={17} />
-                  Loading…
-                </div>
-              )}
-            </div>
-            <section className="source-code">
-              <div className="file-tree-head">
-                <span>{file?.source || "Select a source file"}</span>
-                {file && (
-                  <div className="row">
-                    <button
-                      className="icon-button"
-                      aria-label="Previous source page"
-                      disabled={file.start <= 1}
-                      onClick={() =>
-                        void read(file.path, Math.max(1, file.start - 160))
-                      }
-                    >
-                      <ArrowLeft size={15} />
-                    </button>
-                    <button
-                      className="icon-button"
-                      aria-label="Next source page"
-                      disabled={file.start + 160 > file.total_lines}
-                      onClick={() => void read(file.path, file.start + 160)}
-                    >
-                      <ArrowRight size={15} />
-                    </button>
-                  </div>
-                )}
-              </div>
-              <pre>
-                {file?.content ||
-                  "Choose a file to read its current source with line numbers."}
-              </pre>
-            </section>
-          </div>
-          {search && (
-            <section className="panel search-results">
-              <h3>
-                {search.hits.length} results
-                {search.truncated ? " · bounded search" : ""}
-              </h3>
-              {search.hits.map((hit, index) => (
-                <button
-                  key={index}
-                  onClick={() =>
-                    void read(hit.path, Math.max(1, hit.line - 10))
-                  }
-                >
-                  <strong>
-                    {hit.path}:{hit.line}
-                  </strong>
-                  <span>{hit.preview}</span>
-                </button>
-              ))}
-            </section>
-          )}
-        </>
-      )}
-      {tab === "review" && (
-        <form
-          className="panel review-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setReviewBusy(true);
-            void api<Review>("/api/reviews", {
-              project: project.id,
-              root,
-              mode: reviewMode,
-              task: reviewTask,
-              files: reviewFiles
-                .split("\n")
-                .map((value) => value.trim())
-                .filter(Boolean),
-            })
-              .then(onReview, onError)
-              .finally(() => setReviewBusy(false));
-          }}
-        >
-          <div className="section-heading">
-            <div>
-              <h2>A stronger second look</h2>
-              <p>
-                Use the existing OpenCode account for a bounded review or patch
-                proposal.
-              </p>
-            </div>
-            <Code2 size={28} />
-          </div>
-          <label className="field-label" htmlFor="review-mode">
-            Task type
-          </label>
-          <select
-            id="review-mode"
-            value={reviewMode}
-            onChange={(event) => setReviewMode(event.target.value)}
-          >
-            <option value="review">Review and investigate</option>
-            <option value="patch">Propose a patch</option>
-          </select>
-          <label className="field-label" htmlFor="review-files">
-            One to four relative source paths
-          </label>
-          <textarea
-            id="review-files"
-            required
-            rows={3}
-            value={reviewFiles}
-            onChange={(event) => setReviewFiles(event.target.value)}
-            placeholder={"package.json\nsrc/example.ts"}
-          />
-          <label className="field-label" htmlFor="review-task">
-            Requested outcome
-          </label>
-          <textarea
-            id="review-task"
-            required
-            minLength={5}
-            maxLength={8000}
-            rows={4}
-            value={reviewTask}
-            onChange={(event) => setReviewTask(event.target.value)}
-            placeholder="What should the coding model investigate or propose?"
-          />
-          <p className="muted">
-            Applicable instructions accompany the selected snapshots. A returned
-            proposal is not an applied change. The run record preserves the
-            actual outcome.
-          </p>
-          <Button primary type="submit" disabled={reviewBusy}>
-            {reviewBusy ? (
-              <LoaderCircle className="spin" size={16} />
-            ) : (
-              <Play size={16} />
+              >
+                {preferences.theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+              </IconButton>
+              <Avatar sx={{ width: 32, height: 32, fontSize: "0.9rem" }}>M</Avatar>
+            </Toolbar>
+          </AppBar>
+          <Box component="main" sx={{ flexGrow: 1, p: { xs: 2, md: 3 }, maxWidth: 1200, width: "100%", mx: "auto" }}>
+            {remoteOperator && (
+              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                <Button variant="outlined" size="small" onClick={() => navigate("operator")}>JARVIS Tasks</Button>
+                <Button variant="outlined" size="small" onClick={() => navigate("projects")}>Projects & connections</Button>
+              </Box>
             )}
-            Run focused review
-          </Button>
-        </form>
-      )}
-    </>
+            {view === "operator" && <OperatorPanel ref={operatorPanel} voiceId={preferences.voice} />}
+            {view === "firm" && <FirmPortal onTalk={() => demoMode
+              ? notify("Calls and live chat work in the live portal — this demo shows the firm's screens.")
+              : navigate("operator")} />}
+            {view === "fleet" && <FleetAdmin />}
+            {view === "overview" && (
+              <OverviewView
+                projects={projects}
+                system={system}
+                skills={skills}
+                skillsLoaded={skillsLoaded}
+                operations={operations}
+                project={project}
+                draftKey={key}
+                selected={selected}
+                drafts={drafts}
+                setDrafts={setDrafts}
+                navigate={navigate}
+                setProject={setProject}
+                setConnect={setConnect}
+                newConversation={() => void newConversation()}
+                refreshSystem={() => void refreshSystem()}
+              />
+            )}
+            {view === "assistant" && (
+              <AssistantView
+                threads={threads}
+                thread={thread}
+                setThread={setThread}
+                newConversation={() => void newConversation()}
+                historyMore={historyMore}
+                historyLoading={historyLoading}
+                currentMessages={currentMessages}
+                messagesRef={messagesRef}
+                followMessages={followMessages}
+                loadHistory={loadHistory}
+                project={project}
+                chatKey={key}
+                busyKeys={busy}
+                fail={fail}
+                selected={selected}
+                voiceStatus={voiceStatus}
+                voice={voice}
+                drafts={drafts}
+                setDrafts={setDrafts}
+                sendChat={sendChat}
+                stopChat={() => void stopChat()}
+                notify={notify}
+              />
+            )}
+            {view === "projects" && (
+              <>
+                <ConnectionCatalog selected={project} onSelect={setProject} />
+                <ProjectView
+                  project={selected}
+                  readOnly={remoteCall}
+                  onConnect={() => setConnect(true)}
+                  onChat={() => navigate(remoteOperator ? "operator" : "assistant")}
+                  onError={fail}
+                  onNotice={notify}
+                  onReview={(review) => {
+                    setReviews((previous) => [review, ...previous]);
+                    navigate("runs");
+                  }}
+                />
+              </>
+            )}
+            {view === "skills" && (
+              <SkillsView
+                skills={skills}
+                system={system}
+                onRefresh={() => {
+                  void refreshSkills();
+                  void refreshSystem();
+                }}
+                onDetail={(item) => setDetail(item)}
+                onUse={useSkill}
+                onEnable={(name) => {
+                  void startOperation("/api/skills/enable", { name });
+                }}
+                onSync={() => {
+                  void startOperation("/api/catalog/sync", {});
+                }}
+                onError={fail}
+              />
+            )}
+            {view === "automations" && (
+              <AutomationsView startOperation={(path, body) => { void startOperation(path, body); }} />
+            )}
+            {view === "runs" && (
+              <RunsView
+                operations={operations}
+                reviews={reviews}
+                project={project}
+                selectedName={selected?.name}
+                refreshRuns={() => void refreshRuns()}
+                setReviews={setReviews}
+                setRunDetail={setRunDetail}
+                navigate={navigate}
+                fail={fail}
+              />
+            )}
+            {view === "settings" && (
+              <SettingsView
+                preferences={preferences}
+                savePreferences={(changes) => void savePreferences(changes)}
+                voices={voices}
+                voiceStatus={voiceStatus}
+                system={system}
+                refreshSystem={() => void refreshSystem()}
+              />
+            )}
+          </Box>
+        </Box>
+        <CallScreen
+          open={callOpen}
+          project={selected?.name || "Your workspace"}
+          state={voice.conversation}
+          playbackPhase={voice.phase}
+          playbackStatus={voice.status}
+          audioVisual={voice.audioVisual}
+          onHangUp={hangUp}
+          onMute={(muted) => { void voice.setMuted(muted); }}
+          onResumeAudio={() => { void voice.resumePlayback(); }}
+          onRetry={callJarvis}
+        />
+        <audio ref={voice.audioRef} controls aria-label="Spoken answer"
+          hidden={callOpen || !voice.playing} style={{ width: "100%" }} />
+        <Snackbar
+          open={Boolean(toast)}
+          autoHideDuration={6000}
+          onClose={() => setToast(null)}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        >
+          <Alert severity={toast?.error ? "error" : "success"} onClose={() => setToast(null)} sx={{ width: "100%" }}>
+            {toast?.text}
+          </Alert>
+        </Snackbar>
+        {connect && (
+          <ConnectModal
+            onClose={() => setConnect(false)}
+            onConnect={async (value) => {
+              await api("/api/projects", value);
+              await refreshProjects();
+              setConnect(false);
+              notify("Project connected.");
+            }}
+          />
+        )}
+        {detail && (
+          <SkillDetailDialog
+            detail={detail}
+            onClose={() => setDetail(null)}
+            onInstall={() => {
+              void startOperation("/api/catalog/install", { id: detail.id });
+              setDetail(null);
+            }}
+          />
+        )}
+        {runDetail && (
+          <RunDetailDialog runDetail={runDetail} onClose={() => setRunDetail(null)} notify={notify} />
+        )}
+      </Box>
+    </ThemeProvider>
   );
 }
