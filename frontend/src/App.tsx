@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { api, boundedApi, isRemoteCall, isRemoteOperator, streamChat } from "./api";
+import { api, boundedApi, isDemoPortal, isRemoteCall, isRemoteOperator, streamChat } from "./api";
 import { useVoice } from "./useVoice";
 import { CallScreen } from "./CallScreen";
 import { OperatorPanel } from "./OperatorPanel";
@@ -231,11 +231,18 @@ function Modal({
 }
 
 export default function App() {
+  const [demoMode] = useState(() => isDemoPortal());
+  const demoViews: View[] = ["firm", "fleet"];
+  const visibleNav = demoMode ? navigation.filter((item) => demoViews.includes(item.id)) : navigation;
   const operatorPanel = useRef<OperatorPanelHandle>(null);
   const remoteCall = isRemoteCall();
   const remoteOperator = isRemoteOperator();
   const [ready, setReady] = useState(false);
   const [view, setView] = useState<View>(() => {
+    if (demoMode) {
+      const hash = location.hash.slice(1);
+      return demoViews.includes(hash as View) ? (hash as View) : "firm";
+    }
     if (remoteCall) return remoteOperator ? (location.hash==="#projects"?"projects":"operator") : "assistant";
     const value =
       location.hash.slice(1) || localStorage.getItem("jarvis-active-view");
@@ -307,6 +314,11 @@ export default function App() {
   }, [view]);
   useEffect(() => {
     const change = () => {
+      if (demoMode) {
+        const hash = location.hash.slice(1);
+        if (demoViews.includes(hash as View)) setView(hash as View);
+        return;
+      }
       if (remoteCall) { setView(remoteOperator ? (location.hash==="#projects"?"projects":"operator") : "assistant"); return; }
       const value = location.hash.slice(1);
       if (navigation.some((item) => item.id === value)) setView(value as View);
@@ -389,6 +401,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (demoMode) { setReady(true); return; }
     let alive = true;
     const controller = new AbortController();
     (async () => {
@@ -759,7 +772,7 @@ export default function App() {
     }
   }
   async function savePreferences(changes: Partial<Preferences>) {
-    if (remoteCall) { setPreferences((previous) => ({ ...previous, ...changes })); return; }
+    if (demoMode) { setPreferences((previous) => ({ ...previous, ...changes })); return; }
     const identifier = ++preferenceSequence.current;
     pendingPreferences.current.set(identifier, changes);
     const renderPreferences = () =>
@@ -876,7 +889,7 @@ export default function App() {
           <kbd>Ctrl K</kbd>
         </button>
         <nav aria-label="Main navigation">
-          {navigation.map((item) => (
+          {visibleNav.map((item) => (
             <button
               key={item.id}
               className={`nav-item ${view === item.id ? "selected" : ""}`}
@@ -977,7 +990,7 @@ export default function App() {
             </button>
             <span className="model-chip">
               <Bot size={15} />
-              {system?.model || "Connecting assistant"}
+              {demoMode ? "Demo" : (system?.model || "Connecting assistant")}
             </span>
             <button
               className="icon-button"
@@ -1019,7 +1032,9 @@ export default function App() {
             <button className="button" onClick={()=>navigate('projects')}>Projects & connections</button>
           </nav>}
           {view === "operator" && <OperatorPanel ref={operatorPanel} voiceId={preferences.voice} />}
-          {view === "firm" && <FirmPortal onTalk={() => navigate("operator")} />}
+          {view === "firm" && <FirmPortal onTalk={() => demoMode
+            ? notify("Calls and live chat work in the live portal — this demo shows the firm's screens.")
+            : navigate("operator")} />}
           {view === "fleet" && <FleetAdmin />}
           {view === "overview" && (
             <>
