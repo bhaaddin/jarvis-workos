@@ -1,0 +1,11 @@
+{
+  "id": "jarvis-project-tools",
+  "name": "JARVIS Project Tools",
+  "description": "Read connected Windows project source through the local Project Hub.",
+  "version": "0.3.2",
+  "categories": ["developer-tools"],
+  "contracts": {"tools": ["jarvis_projects", "jarvis_calculate", "jarvis_weather"]},
+  "toolMetadata": {"jarvis_projects": {"profiles": ["coding"]}, "jarvis_calculate": {"profiles": ["coding"]}, "jarvis_weather": {"profiles": ["coding"]}},
+  "activation": {"onStartup": true},
+  "configSchema": {"type": "object", "properties": {}, "additionalProperties": false}
+}

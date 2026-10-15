@@ -1,0 +1,10 @@
+Invoice,Currency,Status,Due,Amount
+A01,CZK,issued,2026-09-20,1210
+A02,CZK,issued,2026-10-01,2420
+A03,CZK,void,2026-09-11,500
+A04,EUR,issued,2026-09-10,121
+A05,EUR,issued,2026-09-11,80
+A06,CZK,issued,2026-09-30,200.50
+A07,CZK,issued,2026-09-10,300.10
+A08,EUR,issued,2026-09-02,19.95
+A09,CZK,draft,2026-09-10,600

@@ -1,0 +1,9 @@
+Invoice,Currency,Status,Booked,Amount
+A01,CZK,settled,2026-09-18,210
+A04,EUR,settled,2026-09-11,21
+A05,EUR,settled,2026-09-12,80
+A06,CZK,settled,2026-09-29,0.50
+A07,CZK,settled,2026-09-15,100
+A01,CZK,pending,2026-09-25,300
+A01,CZK,settled,2026-10-01,100
+X404,EUR,settled,2026-09-11,5

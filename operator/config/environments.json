@@ -1,0 +1,15 @@
+{
+  "commonEnabledTools": ["jarvis_observation_read", "jarvis_mail_attachment", "jarvis_remind_after", "jarvis_browser_task", "jarvis_table_query", "jarvis_social_research", "jarvis_social_contacts", "jarvis_social_contact_update", "jarvis_finance"],
+  "dev": {
+    "enabledTools": ["jarvis_capabilities", "jarvis_clock", "jarvis_memory_search", "jarvis_memory_remember", "jarvis_action_status", "jarvis_fixture_send", "jarvis_projects", "jarvis_calculate", "jarvis_weather", "jarvis_files", "jarvis_document_read", "jarvis_document_create", "jarvis_computer", "jarvis_github", "jarvis_web", "jarvis_run_code", "jarvis_skill_search", "jarvis_tasks", "jarvis_task_save", "jarvis_sportmedical", "jarvis_action_result", "jarvis_mail", "jarvis_send_email"],
+    "providerMode": "fixture", "maxAgentSteps": 8, "maxToolCalls": 16, "maxAgentMs": 300000, "actionApprovalMinutes": 15
+  },
+  "staging": {
+    "enabledTools": ["jarvis_capabilities", "jarvis_clock", "jarvis_memory_search", "jarvis_memory_remember", "jarvis_action_status", "jarvis_projects", "jarvis_calculate", "jarvis_weather", "jarvis_files", "jarvis_document_read", "jarvis_document_create", "jarvis_computer", "jarvis_github", "jarvis_web", "jarvis_run_code", "jarvis_code", "jarvis_code_read", "jarvis_ares", "jarvis_cnb", "jarvis_czech_calc", "jarvis_owner_todo", "jarvis_transit", "jarvis_skill_search", "jarvis_tasks", "jarvis_task_save", "jarvis_sportmedical", "jarvis_action_result", "jarvis_mail", "jarvis_send_email"],
+    "providerMode": "fixture", "maxAgentSteps": 8, "maxToolCalls": 16, "maxAgentMs": 300000, "actionApprovalMinutes": 15
+  },
+  "prod": {
+    "enabledTools": ["jarvis_capabilities", "jarvis_clock", "jarvis_memory_search", "jarvis_memory_remember", "jarvis_action_status"],
+    "providerMode": "live", "maxAgentSteps": 8, "maxToolCalls": 16, "actionApprovalMinutes": 15
+  }
+}

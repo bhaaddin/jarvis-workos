@@ -1,0 +1,48 @@
+name: jarvis-operator
+services:
+  model:
+    extends:
+      file: compose.model.yaml
+      service: model
+  brain-init:
+    image: ghcr.io/openclaw/openclaw:2026.9.6@sha256:0a5ff5e682e62afa19149df126aa50063bf65ef885b5c94713ce32dc0eb12e15
+    user: "0:0"
+    command: ["node", "/seed/seed.mjs"]
+    volumes:
+      - brain-data:/home/node/.openclaw
+      - ./brain:/seed:ro
+  brain:
+    image: ghcr.io/openclaw/openclaw:2026.9.6@sha256:0a5ff5e682e62afa19149df126aa50063bf65ef885b5c94713ce32dc0eb12e15
+    init: true
+    restart: unless-stopped
+    environment:
+      HOME: /home/node
+      OPENCLAW_HOME: /home/node
+      OPENCLAW_STATE_DIR: /home/node/.openclaw
+      OPENCLAW_CONFIG_PATH: /home/node/.openclaw/openclaw.json
+      OPENCLAW_GATEWAY_TOKEN: ${JARVIS_OPERATOR_GATEWAY_TOKEN:?Initialize operator secrets first}
+      OPENCLAW_LOG_LEVEL: silent
+      JARVIS_OPERATOR_CONSOLE_STORAGE: none
+      OLLAMA_API_KEY: ollama-local
+      TZ: Europe/Prague
+    command: ["node", "dist/index.js", "gateway", "--bind", "lan", "--port", "18789"]
+    ports: ["127.0.0.1:18809:18789"]
+    volumes: ["brain-data:/home/node/.openclaw"]
+    depends_on:
+      model:
+        condition: service_healthy
+      brain-init:
+        condition: service_completed_successfully
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    networks: [default, model-runtime]
+    logging:
+      # Native runtime.log prints assistant prose regardless of consoleLevel.
+      # Retain structured operator audits, not unfiltered model console output.
+      driver: none
+volumes:
+  brain-data:
+networks:
+  model-runtime:
+    external: true
+    name: jarvis-workos_default

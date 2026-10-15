@@ -1,0 +1,39 @@
+{
+  "gateway": {
+    "mode": "local", "port": 18789, "bind": "lan",
+    "auth": {"mode": "token", "token": "${OPENCLAW_GATEWAY_TOKEN}"},
+    "controlUi": {"enabled": false},
+    "http": {"endpoints": {"chatCompletions": {"enabled": true}}}
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/home/node/.openclaw/operator-workspace",
+      "model": {"primary": "jarvis-local/jarvis-qwen3.5:27b-text-gpu"},
+      "thinkingDefault": "high",
+      "skills": [],
+      "heartbeat": {"every": "0m"}
+    }
+  },
+  "models": {
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://ollama:11434", "apiKey": "ollama-local", "api": "ollama",
+        "timeoutSeconds": 180,
+        "models": [{"id": "qwen3.5:9b", "name": "JARVIS local reasoning", "input": ["text"],
+          "contextTokens": 32768, "maxTokens": 4096, "reasoning": true, "params": {"num_ctx": 32768}}]
+      }
+    }
+  },
+  "tools": {
+    "profile": "minimal", "toolSearch": false,
+    "deny": ["session_status", "group:runtime", "group:fs", "group:ui", "group:messaging", "group:sessions", "group:memory"]
+  },
+  "logging": {"level": "silent", "consoleLevel": "silent", "redactSensitive": "tools"},
+  "update": {"checkOnStart": false},
+  "plugins": {
+    "allow": ["jarvis-operator-boundary"],
+    "slots": {"memory": "none"},
+    "load": {"paths": ["/home/node/.openclaw/extensions/jarvis-operator-boundary"]},
+    "entries": {"jarvis-operator-boundary": {"enabled": true, "hooks": {"allowConversationAccess": true, "allowPromptInjection": false}}}
+  }
+}

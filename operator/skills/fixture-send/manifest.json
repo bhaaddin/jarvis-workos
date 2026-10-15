@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1, "id": "jarvis_fixture_send", "version": "1.0.1", "providerMode": "fixture",
+  "description": "STAGING ONLY: propose a synthetic message delivery for approval/queue qualification. It records a fixture receipt, never sends an external message, and is unavailable in production. A proposal is not completed delivery.",
+  "handler": "handler.mjs", "environments": ["dev","staging"],
+  "permissions": ["fixture.send"], "risk": "external_write", "serviceOperations": ["fixture.send"], "sensitivity": "internal", "requires": [],
+  "inputSchema": {"type":"object","required":["recipient","body"],"properties":{"recipient":{"type":"string","format":"email","maxLength":200},"body":{"type":"string","minLength":1,"maxLength":2000}},"additionalProperties":false},
+  "outputSchema": {"type":"object","required":["id","simulation","externallySent"],"properties":{"id":{"type":"string","format":"uuid"},"simulation":{"const":true},"externallySent":{"const":false}},"additionalProperties":false},
+  "idempotent": true, "supportsUndo": false, "publicProjection": true, "timeoutMs": 5000
+}

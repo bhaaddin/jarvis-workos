@@ -1,0 +1,1 @@
+{"name":"jarvis-capability-tools","version":"0.3.0","private":true,"type":"module","openclaw":{"extensions":["./index.js"],"compat":{"pluginApi":">=2026.9.6","minGatewayVersion":"2026.9.6"}}}

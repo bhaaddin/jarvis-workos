@@ -1,0 +1,11 @@
+{
+  "id":"jarvis-capability-tools",
+  "name":"JARVIS Capability Library",
+  "description":"Search real community skill definitions and inspect local readiness.",
+  "version":"0.3.0",
+  "categories":["productivity"],
+  "contracts":{"tools":["jarvis_capabilities"]},
+  "toolMetadata":{"jarvis_capabilities":{"profiles":["coding"]}},
+  "activation":{"onStartup":true},
+  "configSchema":{"type":"object","properties":{},"additionalProperties":false}
+}

@@ -1,0 +1,9 @@
+{
+  "manifestVersion": 1, "id": "jarvis_clock", "version": "1.1.0",
+  "description": "Read observed clock facts before interpreting dates: iso is UTC; localDate and localTime are already converted to the named business timezone. Use the local fields for that timezone; do not relabel the UTC time as local.",
+  "handler": "handler.mjs", "environments": ["dev","staging","prod"],
+  "permissions": ["operator.chat"], "risk": "read", "serviceOperations": ["core.clock"], "sensitivity": "public", "requires": [],
+  "inputSchema": {"type":"object","properties":{},"additionalProperties":false},
+  "outputSchema": {"type":"object","required":["iso","localDate","localTime","timezone"],"properties":{"iso":{"type":"string","format":"date-time"},"localDate":{"type":"string"},"localTime":{"type":"string","pattern":"^[0-9]{2}:[0-9]{2}:[0-9]{2}$"},"timezone":{"type":"string"}},"additionalProperties":false},
+  "idempotent": true, "supportsUndo": false, "publicProjection": true, "timeoutMs": 5000
+}

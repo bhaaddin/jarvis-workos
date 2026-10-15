@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>JARVIS · Project Hub</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+  <script src="/voice.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="/" aria-label="JARVIS Project Hub home"><span class="brand-mark">J</span><span>JARVIS<small>PROJECT HUB</small></span></a>
+    <div class="sidebar-heading">YOUR WORKSPACES</div>
+    <nav id="projects" aria-label="Connected projects"></nav>
+    <button id="connect-project" class="button primary wide">+ Connect a project</button>
+    <div class="sidebar-footer"><span class="status-dot"></span> Local workspace connection<br><a href="http://localhost:18789" target="_blank" rel="noreferrer">Assistant settings ↗</a><a href="http://localhost:5679" target="_blank" rel="noreferrer">Workflow editor ↗</a></div>
+  </aside>
+  <main>
+    <header class="topbar"><div><div class="eyebrow">YOUR PROJECT. ONE CONVERSATION.</div><h1 id="project-title">Connect your work</h1></div><button id="refresh" class="button">Refresh</button></header>
+    <div id="notice" role="status" class="notice" hidden></div>
+    <section id="welcome" class="welcome"><div class="orb">J</div><h2>A home for every project.</h2><p>Connect a folder. JARVIS reads its instructions, explores the source, and brings the right context into your conversation.</p><button id="welcome-connect" class="button primary">Connect your first project</button><p class="muted">Local folders · Git repositories · Multiple folders per project</p></section>
+    <div id="workspace" hidden>
+      <div class="workspace-toolbar"><label for="root-select">Project folder</label><select id="root-select"></select><button id="open-coding" class="button">Open coding session ↗</button></div>
+      <nav class="tabs" aria-label="Project views"><button data-tab="overview" class="tab active" aria-current="page">Overview</button><button data-tab="files" class="tab">Source explorer</button><button data-tab="chat" class="tab">Ask JARVIS</button><button data-tab="review" class="tab">Strong review</button></nav>
+      <section id="overview" class="view"><div class="section-heading"><h2>Connected and in context</h2><p class="muted">Live source and Git facts from your selected folders.</p></div><div id="root-cards" class="cards"></div><div class="panel next-step"><div><h3>Start with the question that matters.</h3><p>Ask how a feature works, find its implementation, or plan a change with source references.</p></div><button id="ask-project" class="button primary">Ask about this project →</button></div></section>
+      <section id="files" class="view" hidden><form id="search-form" class="search-bar"><label class="sr-only" for="search-query">Search source</label><input id="search-query" placeholder="Search filenames or source text…" minlength="2" maxlength="200" required><button class="button primary">Search</button></form><div class="explorer"><div class="panel file-list"><div class="file-toolbar"><button id="parent-folder" class="button compact">↑ Up</button><span id="folder-path">/</span></div><div id="file-entries"></div></div><div class="panel source-panel"><div class="file-toolbar"><span id="source-title">Choose a source file</span><button id="previous-page" class="button compact" hidden>Previous</button><button id="next-page" class="button compact" hidden>Next</button></div><pre id="source-content">Select a file to inspect its current contents.</pre></div></div><div id="search-results" class="panel" hidden></div></section>
+      <section id="chat" class="view" hidden><div class="chat-heading"><div><h2>Ask JARVIS</h2><p class="muted">Project-aware conversation, powered by your OpenClaw assistant.</p></div><button id="new-chat" class="button">New conversation</button></div><div class="suggestions"><button class="suggestion" data-prompt="Explain this project's architecture. Use source evidence and cite file paths.">Explain the architecture</button><button class="suggestion" data-prompt="Inspect the current Git status and summarize the changed areas. Follow the repository instructions.">Summarize current changes</button><button class="suggestion" data-prompt="Read this project's instructions and tell me how to verify a code change. Cite the exact files.">How do I verify changes?</button></div><div id="messages" class="messages" aria-live="polite"></div><form id="chat-form" class="composer"><label class="sr-only" for="chat-message">Message JARVIS</label><textarea id="chat-message" rows="3" maxlength="12000" placeholder="Ask about your project…" required></textarea><div class="composer-footer"><span id="chat-state" class="muted">Uses your configured assistant model</span><button id="send-message" class="button primary">Send →</button></div></form></section>
+      <section id="review" class="view" hidden><div class="section-heading"><h2>A stronger second look.</h2><p class="muted">Send selected source snapshots to your existing OpenCode account. Get a review or a patch proposal with a saved execution record.</p></div><form id="review-form" class="panel form-panel"><label for="review-mode">Task type</label><select id="review-mode"><option value="review">Review and investigate</option><option value="patch">Propose a patch</option></select><label for="review-files">Source files · one to four relative paths, one per line</label><textarea id="review-files" rows="3" placeholder="package.json&#10;src/example.ts" required></textarea><label for="review-task">What should the coding model do?</label><textarea id="review-task" rows="4" minlength="5" maxlength="8000" placeholder="Describe the question or requested change…" required></textarea><p class="muted">Project instructions are included. Results are proposals; the native coding session is where changes can be implemented and verified. Uses your provider account.</p><button id="run-review" class="button primary">Run focused task</button></form><div id="review-result" class="panel review-result" aria-live="polite" hidden></div></section>
+    </div>
+  </main>
+  <dialog id="connect-dialog"><form id="connect-form"><div class="dialog-heading"><h2>Connect a project</h2><button id="close-connect" class="button compact" type="button" aria-label="Close connect dialog">✕</button></div><p class="muted">Use a local folder path. For a backend and frontend, add both on separate lines.</p><label for="project-name">Project name</label><input id="project-name" placeholder="My project" maxlength="100" required><label for="project-folders">Folders · optional label=path</label><textarea id="project-folders" rows="4" placeholder="backend=C:\Projects\my-api&#10;frontend=C:\Projects\my-web" required></textarea><p class="muted">JARVIS detects source files and Git automatically. Connecting a folder adds it to this workspace.</p><div id="connect-error" role="alert"></div><button id="save-project" class="button primary wide">Connect project</button></form></dialog>
+</body>
+</html>

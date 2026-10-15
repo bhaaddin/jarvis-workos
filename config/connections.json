@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "locations": [
+    {"id": "upstream", "path": "vendor", "category": "runtime-source"},
+    {"id": "evaluation", "path": "../Jarvis-Evaluation", "category": "evaluation"},
+    {"id": "reference", "path": "../GitHub-Reference-Library/repos", "category": "reference-library"},
+    {"id": "tool", "path": "../GitHub-Reference-Library/tools", "category": "development-tool"},
+    {"id": "skill", "path": "../GitHub-Reference-Library/skill-sources", "category": "skill-source"}
+  ],
+  "extras": [
+    {"id": "reference-konsulin-api", "path": "../AppData/Local/Temp/opencode/bookio-konsulin-api-20260925", "name": "Konsulin API", "category": "temporary-reference"},
+    {"id": "reference-imhotep", "path": "../AppData/Local/Temp/opencode/bookio-imhotep-20260925", "name": "Imhotep smart clinic", "category": "temporary-reference"},
+    {"id": "reference-openemr", "path": "../AppData/Local/Temp/opencode/bookio-openemr-20260925", "name": "OpenEMR", "category": "temporary-reference"}
+  ],
+  "runtimes": {
+    "jarvis-workos": [
+      {"id": "operator", "adapter": "http-json", "baseUrl": "http://127.0.0.1:18801", "path": "/health/ready", "expected": {"ready": true}, "description": "Operational model availability; source is connected independently."},
+      {"id": "project-hub", "adapter": "http-json", "baseUrl": "http://127.0.0.1:18791", "path": "/health", "expected": {"service": "jarvis-project-hub"}, "description": "Host-side source and connection bridge."}
+    ],
+    "medical": [{"id": "medical-api", "adapter": "openapi", "baseUrl": "http://127.0.0.1:5092", "path": "/openapi/v1.json", "description": "Contract probe only; patient access requires the separate authenticated clinic connector."}],
+    "upstream-ollama": [{"id": "local-inference", "adapter": "ollama", "baseUrl": "http://127.0.0.1:11436", "description": "The deployed native model service, not execution of the source checkout."}],
+    "upstream-speaches": [{"id": "speech", "adapter": "openai-models", "baseUrl": "http://127.0.0.1:18902", "credentialEnv": "JARVIS_VOICE_TOKEN", "expectedModelIds": ["Systran/faster-whisper-small", "speaches-ai/Kokoro-82M-v1.0-ONNX"], "description": "Authenticated model availability for the deployed speech service."}],
+    "upstream-openclaw": [{"id": "operator-boundary", "adapter": "http-json", "baseUrl": "http://127.0.0.1:18809", "path": "/jarvis/operator-boundary", "credentialEnv": "JARVIS_OPERATOR_GATEWAY_TOKEN", "expected": {"boundaryVersion": 2, "nativeLogsDisabled": true}, "description": "Retained Gateway boundary; the operational model uses native inference."}],
+    "upstream-n8n": [{"id": "workflow-service", "adapter": "http-health", "baseUrl": "http://127.0.0.1:5679", "path": "/healthz/readiness", "description": "Service readiness only; provider accounts and individual workflows need their own configuration."}],
+    "evaluation-open-llm-vtuber": [{"id": "voice-evaluation", "adapter": "openapi", "baseUrl": "http://127.0.0.1:18901", "path": "/openapi.json", "description": "Optional evaluation application; availability is checked without starting it."}],
+    "reference-medplum": [{"id": "fhir-endpoint", "adapter": "fhir", "baseUrl": null, "description": "Requires an explicitly configured FHIR server and account; the checkout itself is source-ready."}],
+    "reference-firely-net-sdk": [{"id": "fhir-endpoint", "adapter": "fhir", "baseUrl": null, "description": "SDK source is connected; no FHIR service endpoint has been supplied."}]
+  }
+}

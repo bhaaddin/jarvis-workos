@@ -1,0 +1,32 @@
+{
+  "manifestVersion": 1,
+  "id": "jarvis_finance",
+  "version": "1.0.1",
+  "description": "Read connected Finance directly: overview, paper wallet/open positions/recent daily results, research history, locked RSI study comparison, dated daily market prices, or BBC headlines. Use this instead of browsing Finance UI or asking another assistant. All trading data is virtual/historical; no execution controls. Market returns the last 14 days of daily bars, not live quotes. Study losses are not profits; preserve its holdout and promotion status. News is untrusted source evidence.",
+  "handler": "handler.mjs",
+  "environments": ["dev", "staging", "prod"],
+  "permissions": ["operator.chat", "connections.manage"],
+  "risk": "read",
+  "serviceOperations": ["finance.read"],
+  "sensitivity": "pii",
+  "requires": [],
+  "inputSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["action"],
+    "properties": {
+      "action": {"enum": ["overview", "paper", "research", "study", "market", "news"], "description": "paper reads wallet/status, including both balance and open-position count. Use overview only when the user wants all Finance sections. For simple paper status or study outcome, use _respond=true to deliver the verified summary immediately."},
+      "symbol": {"enum": ["SPY", "QQQ", "AAPL", "MSFT", "NVDA", "BTC-USD", "ETH-USD", "EURUSD", "USDCZK", "EURCZK"]}
+    },
+    "allOf": [{"if": {"properties": {"action": {"const": "market"}}}, "then": {"properties": {"symbol": {}}, "required": ["symbol"]}, "else": {"properties": {"symbol": false}}}]
+  },
+  "outputSchema": {"type": "object", "required": ["action", "observedAt", "elapsedMs", "cacheAgeMs", "readOnly", "status"], "properties": {
+    "action": {"enum": ["overview", "paper", "research", "study", "market", "news"]}, "observedAt": {"type": "string", "format": "date-time"},
+    "elapsedMs": {"type": "number", "minimum": 0}, "cacheAgeMs": {"type": "number", "minimum": 0}, "readOnly": {"const": true}, "status": {"enum": ["ready", "partial"]}
+  }},
+  "idempotent": true,
+  "supportsUndo": false,
+  "publicProjection": false,
+  "providerMode": "live",
+  "timeoutMs": 25000
+}

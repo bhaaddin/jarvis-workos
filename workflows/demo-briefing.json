@@ -1,0 +1,43 @@
+{
+  "id": "jarvisDemoBriefing",
+  "name": "JARVIS - Demo briefing (synthetic data)",
+  "active": false,
+  "nodes": [
+    {
+      "id": "jarvis-webhook",
+      "name": "Authenticated request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300],
+      "webhookId": "jarvis-demo-briefing",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "jarvis/demo-briefing",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": { "id": "jarvisWebhookKey", "name": "JARVIS workflow key" }
+      }
+    },
+    {
+      "id": "jarvis-response",
+      "name": "Return demo result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [520, 300],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { schema_version: 1, request_id: $json.body.request_id, status: 'completed', mode: 'demo', source: 'n8n', generated_at: $now.toISO(), calendar: [], tasks: [], notes: ['The assistant-to-workflow connection works.', 'This is synthetic data. Connect your email, calendar, and task accounts to create a real daily briefing.'] } }}",
+        "options": { "responseCode": 200 }
+      }
+    }
+  ],
+  "connections": {
+    "Authenticated request": {
+      "main": [[{ "node": "Return demo result", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": { "executionOrder": "v1" }
+}

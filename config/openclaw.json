@@ -1,0 +1,58 @@
+{
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "lan",
+    "auth": {
+      "mode": "token",
+      "token": "${OPENCLAW_GATEWAY_TOKEN}"
+    },
+    "controlUi": {
+      "allowedOrigins": ["http://localhost:18789", "http://127.0.0.1:18789"]
+    },
+    "http": {
+      "endpoints": { "chatCompletions": { "enabled": true } }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "workspace": "/home/node/.openclaw/workspace",
+      "model": { "primary": "ollama/qwen3.5:9b" },
+      "thinkingDefault": "high",
+      "models": { "ollama/qwen3.5:9b": { "params": { "thinking": "high" } } },
+      "skills": ["jarvis-workflows", "jarvis-projects"],
+      "heartbeat": { "every": "0m" }
+    }
+  },
+  "models": {
+    "providers": {
+      "ollama": {
+        "baseUrl": "http://ollama:11434",
+        "apiKey": "ollama-local",
+        "api": "ollama",
+        "timeoutSeconds": 300,
+        "models": [
+          {
+            "id": "qwen3.5:9b",
+            "name": "Qwen 3.5 9B - local",
+            "input": ["text"],
+            "contextTokens": 32768,
+            "maxTokens": 4096,
+            "reasoning": true,
+            "params": { "num_ctx": 32768 }
+          }
+        ]
+      }
+    }
+  },
+  "tools": {
+    "profile": "coding",
+    "toolSearch": false,
+    "exec": { "host": "gateway" }
+  },
+  "update": { "checkOnStart": false },
+  "plugins": {
+    "load": {"paths": ["/home/node/.openclaw/extensions/jarvis-project-tools"]},
+    "entries": {"jarvis-project-tools": {"enabled": true}}
+  }
+}

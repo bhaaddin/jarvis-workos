@@ -1,0 +1,52 @@
+{
+  "projects": [
+    {
+      "id": "signbridge-ai",
+      "path": "C:\\Users\\Matko\\signbridge-ai"
+    },
+    {
+      "id": "sportmedical-frontend",
+      "path": "C:\\Users\\Matko\\sportmedical-frontend"
+    },
+    {
+      "id": "sportmedical-api",
+      "path": "C:\\Users\\Matko\\sportmedical-api"
+    },
+    {
+      "id": "4thebeat",
+      "path": "C:\\Users\\Matko\\4thebeat"
+    },
+    {
+      "id": "husky-experience",
+      "path": "C:\\Users\\Matko\\husky-experience"
+    },
+    {
+      "id": "ai-journalist-studio",
+      "path": "C:\\Users\\Matko\\AI-Journalist-Studio"
+    },
+    {
+      "id": "neuron-race",
+      "path": "C:\\Users\\Matko\\Neuron-Race"
+    },
+    {
+      "id": "solar-ai-analyzer",
+      "path": "C:\\Users\\Matko\\solar-ai-analyzer"
+    },
+    {
+      "id": "test-simple",
+      "path": "C:\\Users\\Matko\\test-simple"
+    },
+    {
+      "id": "the-writing-hub",
+      "path": "C:\\Users\\Matko\\The-Writing-Hub"
+    },
+    {
+      "id": "crypto-ai-project",
+      "path": "C:\\Users\\Matko\\crypto-ai-project"
+    },
+    {
+      "id": "bahaaddn",
+      "path": "C:\\Users\\Matko\\bahaaddn"
+    }
+  ]
+}

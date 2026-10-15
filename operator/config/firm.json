@@ -1,0 +1,12 @@
+{
+  "tenant": "sportmedical-local",
+  "displayName": "Pilot firm",
+  "industry": "general",
+  "languages": ["cs", "en"],
+  "tone": "Short bullets, plain words, Czech with Czech speakers.",
+  "workingHours": {"timezone": "Europe/Prague", "days": ["Mon", "Tue", "Wed", "Thu", "Fri"], "start": "08:00", "end": "17:00"},
+  "approvalDefaults": {"external": "ask", "money": "never", "trading": "never"},
+  "fieldPacks": ["office", "finance", "web"],
+  "branding": {"symbol": "J", "theme": "dark"},
+  "billingNote": "Pilot phase: monthly hosting is invoiced manually after agreement. No payment gateway is connected."
+}

@@ -1,0 +1,23 @@
+.operator-panel {max-width:1500px;margin:auto;--surface:var(--panel)}
+.operator-layout {display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start}
+.operator-main {min-width:0}.operator-row,.operator-status {display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.operator-status {padding:12px 0;color:var(--muted,#8995a8);font-size:13px}.operator-status .button:first-of-type {margin-left:auto}
+.operator-panel select,.operator-panel input,.operator-panel textarea {font:inherit;color:inherit;background:var(--surface,#101b2c);border:1px solid var(--border,#29384a);border-radius:8px;padding:10px;max-width:100%}
+.operator-messages {min-height:280px;max-height:58vh;overflow:auto;padding:16px;border:1px solid var(--border,#29384a);border-radius:14px;background:var(--surface,#101b2c)}
+.operator-message {margin:0 0 20px;overflow-wrap:anywhere}.operator-message>strong {display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px;color:var(--muted,#9eabc0)}
+.operator-message.user {border-left:3px solid #50a8e8;padding-left:14px}.operator-message.assistant {border-left:3px solid #42bfab;padding-left:14px}
+.operator-tool {font-size:12px;color:var(--muted,#9eabc0);margin:6px 0 12px}.operator-panel pre {white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;font-size:12px}
+.operator-welcome {text-align:center;padding:40px 22px;color:var(--muted,#9eabc0)}.operator-welcome h2 {color:var(--text,#e4edf9)}
+.operator-thinking {display:flex;gap:9px;align-items:center;color:var(--muted,#9eabc0)}
+.operator-composer {margin:16px 0}.operator-composer textarea {width:100%;box-sizing:border-box;min-height:100px;resize:vertical}.operator-composer .operator-row {justify-content:space-between;margin-top:10px}
+.operator-upload {position:relative;overflow:hidden;cursor:pointer}.operator-upload input {position:absolute;inset:0;opacity:0;cursor:pointer;max-width:100%}
+.operator-examples {display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 24px}.operator-examples button {text-align:left;border:1px solid var(--border,#29384a);background:transparent;color:var(--muted,#9eabc0);padding:9px 12px;border-radius:9px;font:inherit;font-size:12px;max-width:100%;cursor:pointer}
+.operator-card,.operator-action {padding:18px;border:1px solid var(--border,#29384a);background:var(--surface,#101b2c);border-radius:12px;margin-bottom:16px;overflow-wrap:anywhere}
+.operator-card h2 {font-size:16px;margin:0 0 14px}.operator-card p {font-size:13px;color:var(--muted,#9eabc0)}.operator-card small {display:block;color:var(--muted,#9eabc0);font-size:11px;margin-top:4px}
+.operator-artifact {display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--border,#29384a);color:var(--text,#e4edf9);text-decoration:none}
+.operator-task {margin:12px 0;padding-bottom:12px;border-bottom:1px solid var(--border,#29384a)}.operator-task .button {margin-top:8px;font-size:12px}
+.operator-card label {display:block;font-size:12px;margin:10px 0}.operator-card input {box-sizing:border-box;width:100%;margin-top:5px}.operator-error {color:#ff9494;border-left:3px solid #d66;padding:8px 12px}.operator-connected {color:#63d2ab!important}
+.operator-action .operator-row {justify-content:space-between}.operator-action details {margin:12px 0}
+@media(max-width:1150px){.operator-layout{grid-template-columns:minmax(0,1fr) 250px}}
+@media(max-width:850px){.operator-layout{grid-template-columns:1fr}.operator-side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.operator-panel .page-heading{flex-wrap:wrap}.operator-messages{max-height:55vh}}
+@media(max-width:560px){.operator-side{display:block}.operator-panel select{max-width:190px}.operator-messages{padding:10px}.operator-row .button{padding:8px}.operator-status{gap:6px}}

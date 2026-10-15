@@ -1,0 +1,1 @@
+{"transport":"ollama","baseUrl":"http://127.0.0.1:11436","model":"jarvis-qwen3.8:27b-text-gpu","think":"xhigh","contextTokens":32768,"maxTokens":8192,"toolDiscovery":false}

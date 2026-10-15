@@ -1,0 +1,7 @@
+Region,Currency,Status,Gross,VAT
+Prague,CZK,paid,1210,210
+Prague,CZK,paid,242,42
+Brno,CZK,paid,119,19
+Brno,CZK,cancelled,999,0
+Prague,CZK,refunded,121,21
+Olomouc,CZK,paid,605,105

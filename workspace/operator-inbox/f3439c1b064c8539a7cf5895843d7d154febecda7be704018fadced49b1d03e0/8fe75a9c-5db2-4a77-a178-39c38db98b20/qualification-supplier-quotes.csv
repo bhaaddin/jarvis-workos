@@ -1,0 +1,6 @@
+Supplier,Currency,Net,Shipping,TaxPercent,ValidUntil
+Alpha,CZK,1000,100,21,2026-10-15
+Beta,CZK,1050,0,21,2026-10-20
+Gamma,CZK,980,180,21,2026-10-20
+Expired,CZK,500,0,21,2026-09-15
+Foreign,EUR,40,0,21,2026-10-20
