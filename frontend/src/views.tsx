@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import {
   Accordion,
@@ -70,7 +70,6 @@ import {
   RefreshCw,
   Search,
   Send,
-  Settings2,
   ShieldCheck,
   Square,
   Sun,
@@ -81,7 +80,7 @@ import {
   Zap,
 } from "lucide-react";
 import { api } from "./api";
-import { DataTable, EmptyState, LoadingRow, RichText, StatCard, toneColor } from "./components";
+import { EmptyState, RichText, StatCard } from "./components";
 import type {
   Capability,
   CatalogPage,
@@ -291,7 +290,7 @@ export function OverviewView({ projects, system, skills, skillsLoaded, operation
   );
 }
 
-export function AssistantView({ threads, thread, setThread, newConversation, historyMore, historyLoading, currentMessages, messagesRef, followMessages, loadHistory, project, chatKey, fail, selected, voiceStatus, voice, drafts, setDrafts, sendChat, stopChat, notify }: {
+export function AssistantView({ threads, thread, setThread, newConversation, historyMore, historyLoading, currentMessages, messagesRef, followMessages, loadHistory, project, chatKey, busyKeys, fail, selected, voiceStatus, voice, drafts, setDrafts, sendChat, stopChat, notify }: {
   threads: Thread[];
   thread: string;
   setThread: (value: string) => void;
@@ -844,11 +843,10 @@ export function ProjectView({ project, readOnly = false, onConnect, onChat, onEr
             <TextField
               aria-label="Search project source"
               value={query}
-              slotProps={{ htmlInput: { minLength: 2, maxLength: 200 } }}
+              slotProps={{ htmlInput: { minLength: 2, maxLength: 200 }, input: { startAdornment: <Search size={17} style={{ marginRight: 8, color: "#64748b" }} /> } }}
               required
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search filenames or code…"
-              slotProps={{ input: { startAdornment: <Search size={17} style={{ marginRight: 8, color: "#64748b" }} /> } }}
+              placeholder="Search filenames or code..."
             />
             <Button type="submit" variant="contained" sx={{ flexShrink: 0 }}>
               Search source
@@ -1882,5 +1880,7 @@ export function RunDetailDialog({ runDetail, onClose, notify }: {
     </Dialog>
   );
 }
+
+
 
 

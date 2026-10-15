@@ -1,49 +1,24 @@
-@import "tailwindcss";
-
-/* Jarvis premium dark theme. Blue-tinted surfaces, soft white/10 rings,
-   emerald identity with glow on primary actions. */
-@theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --color-surface-950: #080d16;
-  --color-surface-900: #0c1320;
-  --color-surface-800: #131c2c;
-  --color-surface-700: #1b2740;
-  --color-line: #1e2a3f;
-  --color-accent-300: #6ee7b7;
-  --color-accent-400: #34d399;
-  --color-accent-500: #10b981;
-  --color-accent-600: #059669;
-}
+/* JARVIS Command Center — global stylesheet.
+   Component styling lives in the MUI theme (src/theme.ts).
+   Only font smoothing and media-element rules remain here. */
 
 html {
-  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
-  background-color: var(--color-surface-950);
-  background-image:
-    radial-gradient(1200px 400px at 80% -100px, rgba(16, 185, 129, 0.08), transparent),
-    radial-gradient(900px 380px at 10% -80px, rgba(56, 130, 246, 0.07), transparent);
-  background-attachment: fixed;
-  color: #e2e8f0;
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  margin: 0;
 }
 
-::selection {
-  background: rgba(16, 185, 129, 0.35);
+#root {
+  min-height: 100vh;
 }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+audio {
+  width: 100%;
 }
-*::-webkit-scrollbar-thumb {
-  background: #243449;
-  border-radius: 8px;
-  border: 2px solid #080d16;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
+
+canvas {
+  max-width: 100%;
 }
