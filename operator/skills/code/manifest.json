@@ -1,1 +1,87 @@
-{"manifestVersion":1,"id":"jarvis_code","version":"1.1.0","description":"Change or inspect connected personal code projects from any channel: apply exact-block edits, run bounded build/test commands, or run a bounded Semgrep security scan of the project folder. Every edit, run and scan needs approval unless explicitly whitelisted, and arrives as Approve/Deny buttons on messaging channels. Limited to registered working clones; credential files, VCS/generated directories, symlinks and destructive commands are refused. Reads use jarvis_code_read. Use jarvis_projects to discover project ids first.","handler":"handler.mjs","environments":["dev","staging"],"permissions":["sandbox.execute"],"risk":"code","serviceOperations":["code.workspace"],"sensitivity":"internal","requires":[],"inputSchema":{"type":"object","required":["operation","project"],"properties":{"operation":{"enum":["edit","run","scan"]},"project":{"type":"string","minLength":1,"maxLength":80},"path":{"type":"string","minLength":1,"maxLength":500},"oldText":{"type":"string","minLength":10,"maxLength":20000},"newText":{"type":"string","maxLength":20000},"command":{"type":"string","minLength":1,"maxLength":2000},"workdir":{"type":"string","minLength":1,"maxLength":500},"timeoutMs":{"type":"integer","minimum":1000,"maximum":110000}},"additionalProperties":false},"outputSchema":{"type":"object"},"idempotent":false,"supportsUndo":false,"publicProjection":false,"timeoutMs":120000}
+{
+  "manifestVersion": 1,
+  "id": "jarvis_code",
+  "version": "1.1.0",
+  "description": "Change, inspect or scaffold connected personal code projects from any channel: apply exact-block edits, run bounded build/test commands, run a bounded Semgrep security scan, or scaffold a brand-new project folder (git init, README, starter files) registered tap-approve. Every edit, run, scan and scaffold needs approval unless explicitly whitelisted, and arrives as Approve/Deny buttons on messaging channels. Limited to registered working clones plus one guarded scaffold root; credential files, VCS/generated directories, symlinks and destructive commands are refused. Reads use jarvis_code_read. Use jarvis_projects to discover project ids first.",
+  "handler": "handler.mjs",
+  "environments": [
+    "dev",
+    "staging"
+  ],
+  "permissions": [
+    "sandbox.execute"
+  ],
+  "risk": "code",
+  "serviceOperations": [
+    "code.workspace"
+  ],
+  "sensitivity": "internal",
+  "requires": [],
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "operation",
+      "project"
+    ],
+    "properties": {
+      "operation": {
+        "enum": [
+          "edit",
+          "run",
+          "scan",
+          "scaffold"
+        ]
+      },
+      "project": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 80
+      },
+      "path": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "oldText": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 20000
+      },
+      "newText": {
+        "type": "string",
+        "maxLength": 20000
+      },
+      "command": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      },
+      "workdir": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 1000,
+        "maximum": 110000
+      },
+      "template": {
+        "type": "string",
+        "enum": [
+          "node",
+          "python",
+          "docs"
+        ]
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "idempotent": false,
+  "supportsUndo": false,
+  "publicProjection": false,
+  "timeoutMs": 120000
+}

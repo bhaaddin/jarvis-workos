@@ -1,5 +1,6 @@
-import {lstat, mkdir, readdir, readFile, realpath, writeFile} from 'node:fs/promises';
+import {lstat, mkdir, readdir, readFile, realpath, rename, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
+import os from 'node:os';
 import path from 'node:path';
 import type {ObjectValue, ToolContext} from './contracts.js';
 import {assert} from './errors.js';
@@ -15,6 +16,65 @@ const generatedDir = /^(node_modules|\.git|dist|build|coverage|\.next|__pycache_
 const destructive = /\brm\s+-rf\s+\/|:\(\)\s*{\s*:\|:\s*&\s*}|mkfs\b|\bdd\s+.*\bof=|shutdown(\.exe)?\s+\/s|reboot|format\s+[a-z]:|del\s+(\/s\s+)?.*c:\\windows|git\s+push\s+.*--force|git\s+reset\s+--hard/i;
 const MAX_READ = 1024 * 1024;
 const MAX_EDIT = 20000;
+const SCAFFOLD_NAME = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+const SCAFFOLD_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9]|node_modules|\.git|dist|build|coverage)$/i;
+const SCAFFOLD_TEMPLATES = ['node', 'python', 'docs'] as const;
+
+function scaffoldRoot(): string {
+  return process.env.JARVIS_SCAFFOLD_ROOT ?? path.join(os.homedir(), 'Jarvis-Projects');
+}
+
+function scaffoldFiles(template: string, name: string): Array<[string, string]> {
+  const readme = '# ' + name + '\n\nScaffolded by JARVIS. Ask JARVIS to build the first feature.\n';
+  if (template === 'python')
+    return [['README.md', readme], ['.gitignore', '__pycache__/\n.venv/\n*.pyc\n.env\n'],
+      ['main.py', 'def main():\n    print("hello from ' + name + '")\n\n\nif __name__ == "__main__":\n    main()\n']];
+  if (template === 'docs')
+    return [['README.md', readme], ['notes.md', '# Notes\n\n']];
+  return [['README.md', readme], ['.gitignore', 'node_modules/\ndist/\n.env\n'],
+    ['package.json', JSON.stringify({name, version: '0.1.0', private: true,
+      scripts: {test: 'node --test'}}, null, 2) + '\n']];
+}
+
+async function scaffoldCode(input: ObjectValue, signal: AbortSignal): Promise<ObjectValue> {
+  const name = input.project;
+  assert(typeof name === 'string' && SCAFFOLD_NAME.test(name) && !SCAFFOLD_RESERVED.test(name),
+    'CODE_SCAFFOLD_INVALID', 'Name the project with 3-40 lowercase letters, digits or dashes.');
+  const template = input.template === undefined ? 'node' : input.template;
+  assert(typeof template === 'string' && (SCAFFOLD_TEMPLATES as readonly string[]).includes(template),
+    'CODE_SCAFFOLD_INVALID', 'Choose a node, python or docs template.');
+  const parent = scaffoldRoot();
+  assert(path.isAbsolute(parent), 'CODE_SCAFFOLD_INVALID', 'The scaffold root is not configured.', 503);
+  const target = path.join(parent, name);
+  try {
+    await lstat(target);
+    throw new Error('exists');
+  } catch (error) {
+    assert((error as {code?: string}).code === 'ENOENT', 'CODE_SCAFFOLD_EXISTS',
+      'A folder with that project name already exists. Pick another name.', 409);
+  }
+  signal.throwIfAborted();
+  await mkdir(target, {recursive: true});
+  const files = scaffoldFiles(template, name);
+  for (const [relative, content] of files) {
+    assert(!secretName.test(relative), 'CODE_SECRET_REFUSED', 'Credential and key files are never touched.', 403);
+    await writeFile(path.join(target, relative), content, {flag: 'wx', mode: 0o600});
+  }
+  const git = await runProcess('git', ['init'], {cwd: target, timeoutMs: 30000, signal});
+  assert(git.code === 0, 'CODE_SCAFFOLD_GIT', 'The project folder was created but git init failed.', 503);
+  const configured = process.env.JARVIS_CODE_CONFIG ?? path.join(packageRoot, 'config/code.json');
+  const raw = object(JSON.parse(await readFile(configured, 'utf8')));
+  const projects = Array.isArray(raw.projects) ? raw.projects : [];
+  assert(!projects.some(entry => object(entry).id === name), 'CODE_SCAFFOLD_EXISTS',
+    'That project id is already registered. Pick another name.', 409);
+  assert(projects.length < 40, 'CODE_ROOTS_INVALID', 'The working project registry is full.', 503);
+  projects.push({id: name, path: target, access: 'ask'});
+  const temporary = configured + '.tmp';
+  await writeFile(temporary, JSON.stringify({projects}, null, 2) + '\n', {mode: 0o600});
+  await rename(temporary, configured);
+  return {project: name, path: target, template, registered: 'ask',
+    files: files.map(([relative]) => relative), git: (git.stdout + git.stderr).slice(0, 500)};
+}
 
 interface CodeRoot {id: string; path: string; access: 'ask' | 'off'}
 
@@ -194,8 +254,9 @@ async function scanCode(root: string, input: ObjectValue, signal: AbortSignal): 
 
 export async function codeWorkspace(input: ObjectValue, context: ToolContext): Promise<ObjectValue> {
   const operation = input.operation;
-  assert(operation === 'read' || operation === 'edit' || operation === 'run' || operation === 'scan',
-    'CODE_OPERATION_INVALID', 'Choose read, edit, run or scan.');
+  assert(operation === 'read' || operation === 'edit' || operation === 'run' || operation === 'scan' || operation === 'scaffold',
+    'CODE_OPERATION_INVALID', 'Choose read, edit, run, scan or scaffold.');
+  if (operation === 'scaffold') return scaffoldCode(input, context.signal);
   const projectId = input.project;
   assert(typeof projectId === 'string' && /^[a-z0-9-]{1,80}$/.test(projectId),
     'CODE_PROJECT_INVALID', 'Choose a connected working project id.');

@@ -113,8 +113,7 @@ test('code scans report rule findings inside the working root only', async () =>
   }
 }));
 
-test('code edits need approval first, then run once after tap-approve', async () => fixture(async (runtime, context, project) => {
-  const proposed = await runtime.owner.invoke('jarvis_code',
+test('code edits need approval first, then run once after tap-approve', async () => fixture(async (runtime, context, project) => {  const proposed = await runtime.owner.invoke('jarvis_code',
     {operation: 'edit', project, path: 'notes.txt', oldText: 'needle here', newText: 'approved edit', _confidence: 'high'}, context);
   assert.equal(proposed.ok, true);
   assert.equal(proposed.status, 'approval_required');
@@ -128,4 +127,38 @@ test('code edits need approval first, then run once after tap-approve', async ()
     {project, path: 'notes.txt'}, context);
   assert.equal(read.ok, true, JSON.stringify(read).slice(0, 800));
   assert.ok(JSON.stringify(read).includes('approved edit'));
+}));
+
+test('code scaffold creates a registered project only after tap-approve', async () => fixture(async (runtime, context) => {
+  const stub = toolContext(context);
+  const folder = path.dirname(process.env.JARVIS_CODE_CONFIG as string);
+  process.env.JARVIS_SCAFFOLD_ROOT = path.join(folder, 'new-roots');
+  try {
+    const bad = (error: unknown) => (error as {code?: string}).code;
+    await assert.rejects(codeWorkspace({operation: 'scaffold', project: 'Bad Name!'}, stub),
+      (error: unknown) => bad(error) === 'CODE_SCAFFOLD_INVALID');
+    await assert.rejects(codeWorkspace({operation: 'scaffold', project: 'node_modules'}, stub),
+      (error: unknown) => bad(error) === 'CODE_SCAFFOLD_INVALID');
+    await assert.rejects(codeWorkspace({operation: 'scaffold', project: 'demo'}, stub),
+      (error: unknown) => bad(error) === 'CODE_SCAFFOLD_EXISTS');
+    const proposed = await runtime.owner.invoke('jarvis_code',
+      {operation: 'scaffold', project: 'synthetic-shop', template: 'node', _confidence: 'high'}, context);
+    assert.equal(proposed.ok, true);
+    assert.equal(proposed.status, 'approval_required');
+    const action = proposed.action as {id: string; inputHash: string; fingerprint: string};
+    const decided = await runtime.actions.decide({...context, conversationId: ''}, action.id, 'approve',
+      action.inputHash, action.fingerprint, randomUUID());
+    assert.equal(decided.state, 'queued');
+    const completed = await runtime.actions.runOne(action.id, context.actor.tenantId);
+    assert.equal(completed?.state, 'succeeded', JSON.stringify({errorCode: completed?.errorCode, result: completed?.result}));
+    const created = ((completed?.result as {data?: object}).data ?? {}) as {path?: string; files?: string[]; registered?: string};
+    assert.equal(created.registered, 'ask');
+    assert.ok(Array.isArray(created.files) && created.files.includes('README.md'));
+    const again = await codeWorkspace({operation: 'read', project: 'synthetic-shop', path: 'README.md'}, stub);
+    assert.ok((again.lines as string[]).join('\n').includes('synthetic-shop'));
+    await assert.rejects(codeWorkspace({operation: 'scaffold', project: 'synthetic-shop'}, stub),
+      (error: unknown) => bad(error) === 'CODE_SCAFFOLD_EXISTS');
+  } finally {
+    delete process.env.JARVIS_SCAFFOLD_ROOT;
+  }
 }));
