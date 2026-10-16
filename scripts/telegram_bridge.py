@@ -895,6 +895,85 @@ def send_approvals(token: str, chat_id: str, approvals: list[dict]) -> None:
         send_text(token, chat_id, approval_text(item['tool'], action), approval_markup(str(action['id'])))
 
 
+NUDGE_TEXT_AFTER = 5 * 60
+NUDGE_VOICE_AFTER = 15 * 60
+NUDGE_STATE: dict = {}
+NUDGE_CHECK_EVERY = 60
+_last_nudge_check = 0.0
+
+
+def summarize_approval(tool: str, action: dict, limit: int = 160) -> str:
+    """One-line approval reminder without secrets or JSON."""
+    reason = str(action.get('reason') or 'confirmation required')
+    text = '%s — %s' % (tool.replace('jarvis_', '').replace('_', ' '), reason)
+    return text[:limit] + ('…' if len(text) > limit else '')
+
+
+def nudge_due(seen_ago: float, nudged: str) -> str | None:
+    """Escalation ladder for an unanswered approval. Pure and unit-tested."""
+    if seen_ago >= NUDGE_VOICE_AFTER and nudged != 'voice':
+        return 'voice'
+    if seen_ago >= NUDGE_TEXT_AFTER and nudged not in ('text', 'voice'):
+        return 'text'
+    return None
+
+
+def check_approval_nudges(session: OperatorSession, token: str) -> None:
+    """Re-ping unanswered approvals: text after 5 min, voice note after 15 min. Never twice each."""
+    global _last_nudge_check
+    now = time.monotonic()
+    if now - _last_nudge_check < NUDGE_CHECK_EVERY:
+        return
+    _last_nudge_check = now
+    try:
+        actions = session.get('/api/actions').get('actions', [])
+        allowed = read_allowed()
+    except Exception as error:
+        log('nudge check failed: %s' % type(error).__name__)
+        return
+    if not isinstance(actions, list):
+        return
+    for item in actions:
+        if not isinstance(item, dict) or item.get('state') != 'awaiting_approval':
+            continue
+        action_id = str(item.get('id') or '')
+        if not action_id:
+            continue
+        try:
+            expires = float(item.get('expiresAt') or 0) / 1000
+        except (TypeError, ValueError):
+            expires = 0.0
+        if expires and expires - time.time() < 300:
+            continue  # dying on its own; no noise
+        state = NUDGE_STATE.get(action_id)
+        if state is None:
+            state = {'seen': now, 'nudged': '', 'chats': sorted(read_allowed())}
+            NUDGE_STATE[action_id] = state
+            continue
+        kind = nudge_due(now - state['seen'], state['nudged'])
+        if kind is None:
+            continue
+        summary = summarize_approval(str(item.get('tool') or 'task'), item)
+        delivered = False
+        for chat_id in state['chats']:
+            if chat_id not in allowed:
+                continue
+            try:
+                if kind == 'voice':
+                    wav = session.speak('Matko, still waiting for your tap: %s' % summary[:200])
+                    if wav:
+                        send_voice_note(token, chat_id, wav)
+                send_text(token, chat_id, '⏰ Still waiting for your tap:\n%s\nTap ✅ / ❌ on the proposal above.' % summary)
+                delivered = True
+            except Exception as error:
+                log('nudge failed: %s' % type(error).__name__)
+        if delivered:
+            state['nudged'] = kind
+    for action_id in [key for key in NUDGE_STATE if key not in
+                      {str(item.get('id')) for item in actions if isinstance(item, dict)}]:
+        NUDGE_STATE.pop(action_id, None)
+
+
 # -- commands --------------------------------------------------------------------
 
 def cmd_configure(replace: bool) -> int:
@@ -1382,6 +1461,10 @@ def cmd_run() -> int:
                 flush_outbox(token)
             except Exception as error:
                 log('outbox flush failed: %s' % type(error).__name__)
+            try:
+                check_approval_nudges(session, token)
+            except Exception as error:
+                log('nudge check failed: %s' % type(error).__name__)
             call_url = notebook_call_url()
             allowed = read_allowed()
             for update in updates:

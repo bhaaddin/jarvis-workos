@@ -399,6 +399,47 @@ class TelegramBridgeTests(unittest.TestCase):
     def test_army_roster_is_a_list_even_when_missing(self):
         self.assertIsInstance(bridge.army_roster(), list)
 
+    def test_nudge_ladder_text_then_voice_then_silent(self):
+        self.assertIsNone(bridge.nudge_due(60, ''))
+        self.assertEqual(bridge.nudge_due(301, ''), 'text')
+        self.assertIsNone(bridge.nudge_due(400, 'text'))
+        self.assertEqual(bridge.nudge_due(901, 'text'), 'voice')
+        self.assertIsNone(bridge.nudge_due(9999, 'voice'))
+
+    def test_nudge_summary_is_one_line_without_secrets(self):
+        line = bridge.summarize_approval('jarvis_mail_send',
+                                         {'reason': 'send it', 'input': {'password': 'x' * 16}})
+        self.assertNotIn('x' * 16, line)
+        self.assertLessEqual(len(line), 161)
+        self.assertIn('mail send', line)
+
+    def test_nudge_check_pings_once_per_stage(self):
+        bridge.NUDGE_STATE.clear()
+        bridge._last_nudge_check = 0.0
+        action = {'id': 'nudge-1', 'state': 'awaiting_approval', 'tool': 'jarvis_mail_send',
+                  'reason': 'send the reply', 'expiresAt': (time.time() + 3600) * 1000}
+        session = Mock()
+        session.get.return_value = {'actions': [action]}
+        session.speak.return_value = None
+        with patch.object(bridge, 'read_allowed', return_value={'42'}), \
+             patch.object(bridge, 'send_text') as sent, \
+             patch.object(bridge.time, 'monotonic', return_value=1000.0):
+            bridge.check_approval_nudges(session, 't')
+            self.assertIn('nudge-1', bridge.NUDGE_STATE)
+            bridge._last_nudge_check = 0.0
+            with patch.object(bridge.time, 'monotonic', return_value=1000.0 + 301):
+                bridge.check_approval_nudges(session, 't')
+            self.assertTrue(sent.called)
+            self.assertEqual(bridge.NUDGE_STATE['nudge-1']['nudged'], 'text')
+            text_calls = sent.call_count
+            bridge._last_nudge_check = 0.0
+            with patch.object(bridge.time, 'monotonic', return_value=1000.0 + 901):
+                bridge.check_approval_nudges(session, 't')
+            self.assertEqual(bridge.NUDGE_STATE['nudge-1']['nudged'], 'voice')
+            self.assertGreater(sent.call_count, text_calls)
+        bridge.NUDGE_STATE.clear()
+        bridge._last_nudge_check = 0.0
+
 
 if __name__ == '__main__':
     unittest.main()
