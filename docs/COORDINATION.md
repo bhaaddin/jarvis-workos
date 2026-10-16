@@ -19,6 +19,16 @@ Mixed tree is NOT broken: `tsc -b` clean, vitest 42/42 green. But:
 2. Two visual languages ship at once (Tailwind/shadcn on 4 screens, MUI on
    3, legacy style.css shell). No user-facing failure, but incoherent UI.
 
+## 2026-10-16 later: MUI pass reclaimed CallScreen
+
+The other session rewrote `CallScreen.tsx` to MUI (sx props, inline
+`style=` on the dialog), overwriting the Tailwind migration. No recovery
+needed — the Tailwind version is preserved in the WIP branch history.
+`e2e/voice.spec.js` + `e2e/notebook.spec.js` still query the removed
+`.jarvis-call`/`.call-layout`/`.call-status` selectors and CANNOT be fixed
+until CallScreen stops churning. Do not touch screens or e2e until the
+direction decision lands.
+
 ## Rules until decided
 
 1. ONE writer per file. Check the table above before touching a file.

@@ -1,6 +1,7 @@
 .env
 runtime/
 logs/
+tools/*.exe
 vendor/openclaw/
 vendor/n8n/
 vendor/ollama/
