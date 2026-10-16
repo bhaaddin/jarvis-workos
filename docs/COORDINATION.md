@@ -10,8 +10,14 @@ AND run `git status --short` before writing any frontend file.
 | shadcn-migration (this session) | Tailwind v4 + shadcn/ui pattern (pinned deps, `cn`, cva Button, theme tokens) | `frontend/src/lib/*`, `frontend/src/ui/*`, `frontend/src/index.css`, `frontend/src/OperatorPanel.tsx`, `frontend/src/SocialContacts.tsx`, `frontend/src/ConnectionCatalog.tsx`, `frontend/src/CallScreen.tsx`, `frontend/src/AudioTrace.tsx` (App.tsx shell: planned, NOT started) | Preserved on branch `wip/colliding-ui-passes-20261016` (DO NOT MERGE, not pushed). Foundation verified: typecheck clean, 42/42 vitest. |
 | mui-pass (other session) | MUI (`@mui/material`, not in package.json — currently cannot build) | `frontend/src/theme.ts`, `frontend/src/components.tsx`, `frontend/src/views.tsx`, `frontend/src/portalDemo.ts`, `frontend/src/FinancePanel.tsx`, `frontend/src/FirmPortal.tsx`, `frontend/src/FleetAdmin.tsx` | In flight, uncommitted when collided; preserved in the same WIP commit. |
 
-Owner decision needed: which direction wins (Tailwind/shadcn vs MUI).
-The loser’s files get reverted from the WIP checkpoint, the winner finishes.
+## Audit 2026-10-16 (read-only, nothing changed)
+
+Mixed tree is NOT broken: `tsc -b` clean, vitest 42/42 green. But:
+1. `@mui/material` is imported by 3 screens yet missing from package.json —
+   it resolves only by accident from node_modules. A fresh `npm ci` breaks
+   the MUI screens. Either declare it or drop MUI.
+2. Two visual languages ship at once (Tailwind/shadcn on 4 screens, MUI on
+   3, legacy style.css shell). No user-facing failure, but incoherent UI.
 
 ## Rules until decided
 
