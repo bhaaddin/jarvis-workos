@@ -101,6 +101,22 @@ def call_expires_in() -> float | None:
         return None
 
 
+def call_link_works() -> bool:
+    """End-to-end: mint a one-click token and load the public page through the tunnel."""
+    try:
+        sys.path.insert(0, str(ROOT))
+        from project_hub.remote_call import mint_call_token
+        config = json.loads(CALL_FILE.read_text(encoding='utf-8'))
+        url, secret = str(config.get('url') or ''), str(config.get('call_secret') or '')
+        if not url or not secret or float(config.get('expires') or 0) <= time.time():
+            return False
+        target = url.rstrip('/') + '/?call=' + mint_call_token(secret)
+        with urllib.request.urlopen(target, timeout=25) as response:
+            return response.status == 200 and 'jarvis-remote-call' in response.read(200000).decode('utf-8', 'replace')
+    except Exception:
+        return False
+
+
 def check() -> dict:
     return {'operator': check_url(OPERATOR + '/health'),
             'hub': check_url(HUB + '/health'),
@@ -129,12 +145,20 @@ def repair(report: dict) -> dict:
             if report['bridge']:
                 fixed.append('telegram bridge started')
     left = call_expires_in()
-    if left is None or left < CALL_REFRESH_BEFORE:
+    link_ok = call_link_works()
+    if link_ok is False:
+        time.sleep(20)
+        link_ok = call_link_works()
+    if left is None or left < CALL_REFRESH_BEFORE or not link_ok:
+        if left is not None and left >= CALL_REFRESH_BEFORE:
+            run_once(['scripts/remote_call.py', 'stop'], timeout=120)
         ok, _ = run_once(['scripts/remote_call.py', 'start', '--tasks'], timeout=180)
         left = call_expires_in()
         report['call_seconds_left'] = left
-        if left is not None and left > 0:
+        if left is not None and left > 0 and call_link_works():
             fixed.append('call link refreshed')
+        elif left is not None and left > 0:
+            fixed.append('call link renewed (page check flaky, tunnel may need a minute)')
     else:
         report['call_seconds_left'] = left
     report['fixed'] = fixed

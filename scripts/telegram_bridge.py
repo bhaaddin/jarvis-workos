@@ -1068,9 +1068,10 @@ def handle_text(session: OperatorSession, token: str, chat_id: str, text: str, c
         return
     if lowered == '/call':
         if call_url:
-            send_text(token, chat_id, 'Tap to call — signed in, no password typing: ' + call_url)
+            stamp = time.strftime('%H:%M', time.localtime())
+            send_text(token, chat_id, 'Tap to call — signed in, no password typing (fresh link %s, valid ~8h): %s\n\nIf it ever shows a login or dead page, the tunnel rotated — just send /call again for a new link.' % (stamp, call_url))
         else:
-            send_text(token, chat_id, 'No active call link. On the PC run JARVIS Notebook.cmd, then /call again.')
+            send_text(token, chat_id, 'No active call link right now — the PC refreshes it automatically every few hours. Wait a few minutes and send /call again. If it stays down, tell me and I will check the PC.')
         return
     if lowered == '/paswerd' or lowered.startswith('/paswerd ') or lowered == '/password' or lowered.startswith('/password '):
         if message_id is None:

@@ -31,6 +31,7 @@ class WatchdogTests(unittest.TestCase):
         report = {'operator': True, 'hub': False, 'bridge': True, 'call_seconds_left': 30000.0}
         with patch.object(watchdog, 'check_url', return_value=True), \
              patch.object(watchdog, 'process_running', return_value=True), \
+             patch.object(watchdog, 'call_link_works', return_value=True), \
              patch.object(watchdog, 'run_once', return_value=(True, '')) as run, \
              patch.object(watchdog, 'launch_detached') as launch:
             out = watchdog.repair(report)
@@ -46,6 +47,7 @@ class WatchdogTests(unittest.TestCase):
         with patch.object(watchdog, 'check_url', return_value=True), \
              patch.object(watchdog, 'process_running', return_value=True), \
              patch.object(watchdog, 'run_once', return_value=(True, '')), \
+             patch.object(watchdog, 'call_link_works', return_value=True), \
              patch.object(watchdog, 'call_expires_in', side_effect=[100.0, 28700.0]):
             out = watchdog.repair(report)
         self.assertIn('call link refreshed', out['fixed'])
