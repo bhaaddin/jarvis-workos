@@ -876,15 +876,17 @@ def notebook_call_url() -> str | None:
         config = json.loads((ROOT / 'runtime' / 'notebook-call.json').read_text(encoding='utf-8'))
     except (OSError, ValueError):
         return None
-    url = call_url_from_config(config)
-    if not url:
+    base = str(config.get('url') or '').rstrip('/')
+    if not base or config.get('operator_enabled') is not True:
+        return None
+    if float(config.get('expires') or 0) <= time.time():
         return None
     secret = config.get('call_secret')
     if not secret:
-        return url
+        return base + '/#operator'
     sys.path.insert(0, str(ROOT))
     from project_hub.remote_call import mint_call_token
-    return url + '/?call=' + mint_call_token(secret) + '#operator'
+    return base + '/?call=' + mint_call_token(secret) + '#operator'
 
 
 def send_approvals(token: str, chat_id: str, approvals: list[dict]) -> None:

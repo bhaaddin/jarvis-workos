@@ -1,4 +1,5 @@
 import sys
+import json
 import time
 import unittest
 from pathlib import Path
@@ -56,6 +57,23 @@ class TelegramBridgeTests(unittest.TestCase):
         self.assertIn('Call JARVIS', str(markup))
         _, no_markup = bridge.build_welcome(None)
         self.assertIsNone(no_markup)
+
+    def test_one_click_link_carries_token_in_query_not_fragment(self):
+        import tempfile as _tempfile
+        with _tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'runtime').mkdir()
+            (root / 'runtime' / 'notebook-call.json').write_text(json.dumps(
+                {'url': 'https://example.trycloudflare.com/', 'expires': time.time() + 600,
+                 'operator_enabled': True, 'call_secret': 'synthetic-secret'}))
+            with patch.object(bridge, 'ROOT', root):
+                link = bridge.notebook_call_url()
+        self.assertIsNotNone(link)
+        assert link is not None
+        head, fragment = link.split('#', 1)
+        self.assertEqual(fragment, 'operator')
+        self.assertIn('?call=', head)
+        self.assertNotIn('#', head)
 
     def test_token_never_appears_in_error_text(self):
         token = '123456:ABCdefGHIjklMNOpqrSTUvwxYZ123456789'
