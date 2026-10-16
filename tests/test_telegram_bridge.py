@@ -157,12 +157,12 @@ class TelegramBridgeTests(unittest.TestCase):
         bridge.MAIL_LOCKOUTS.clear()
 
     def test_command_menu_and_phone_keyboard_shapes(self):
-        self.assertEqual(len(bridge.COMMANDS), 6)
+        self.assertEqual(len(bridge.COMMANDS), 11)
         self.assertTrue(all('command' in item and 'description' in item for item in bridge.COMMANDS))
-        self.assertIn('paswerd', [item['command'] for item in bridge.COMMANDS])
-        self.assertIn('code', [item['command'] for item in bridge.COMMANDS])
+        for name in ('paswerd', 'code', 'status', 'tasks', 'auto', 'projects', 'army', 'help'):
+            self.assertIn(name, [item['command'] for item in bridge.COMMANDS])
         labels = [button['text'] for row in bridge.PHONE_KEYBOARD['keyboard'] for button in row]
-        self.assertEqual(len(labels), 3)
+        self.assertEqual(len(labels), 5)
         for label in labels:
             self.assertIn(label.strip().lower(), bridge.BUTTON_COMMANDS)
 
@@ -322,6 +322,64 @@ class TelegramBridgeTests(unittest.TestCase):
                 self.assertEqual(bridge.cmd_status(network=True), 0)
             call.assert_called_once()
             self.assertNotIn('123456:synthetic', str(printed.call_args))
+
+    def test_progress_notes_stay_silent_early_then_speak(self):
+        self.assertIsNone(bridge.progress_note(5))
+        self.assertIsNone(bridge.progress_note(29))
+        self.assertIn('35s', bridge.progress_note(35) or '')
+        self.assertIn('90s', bridge.progress_note(90) or '')
+        self.assertIn('150s', bridge.progress_note(150) or '')
+
+    def test_short_time_never_raises(self):
+        self.assertEqual(bridge.short_time(None), '—')
+        self.assertEqual(bridge.short_time('garbage'), '—')
+        self.assertEqual(bridge.short_time(-5), '—')
+        self.assertRegex(bridge.short_time(1792157636), r'\d{2}\.\d{2} \d{2}:\d{2}')
+
+    def test_status_card_shows_health_counts_and_call(self):
+        card = bridge.format_status({'operator': True, 'hub': True, 'bridge': True},
+                                    2, 5, 'synthetic-model', True, '7h 59m')
+        self.assertIn('✅', card)
+        self.assertIn('2', card)
+        self.assertIn('synthetic-model', card)
+        self.assertIn('7h 59m', card)
+        down = bridge.format_status({'operator': False, 'hub': False, 'bridge': True},
+                                    0, 0, '', False, '')
+        self.assertIn('❌', down)
+
+    def test_tasks_list_filters_closed_and_bounds(self):
+        tasks = [{'id': 'a', 'data': {'title': 'Do X', 'state': 'open', 'dueAt': 1792157636}},
+                 {'id': 'b', 'data': {'title': 'Done Y', 'state': 'done'}},
+                 {'id': 'c', 'data': {'title': 'Old Z', 'state': 'cancelled'}}]
+        listed = bridge.format_tasks_list(tasks)
+        self.assertIn('Do X', listed)
+        self.assertNotIn('Done Y', listed)
+        self.assertNotIn('Old Z', listed)
+        self.assertIn('No open tasks', bridge.format_tasks_list([]))
+
+    def test_schedules_and_army_format_defensively(self):
+        self.assertIn('No automations', bridge.format_schedules([]))
+        rendered = bridge.format_schedules([{'name': 'Morning brief', 'enabled': True, 'nextRun': 1792157636},
+                                            {'id': 'weird'}])
+        self.assertIn('Morning brief', rendered)
+        self.assertIn('OFF', rendered)
+        self.assertIn('not installed', bridge.format_army([]))
+        full = bridge.format_army([{'name': 'coder', 'role': 'writes bounded patches'}])
+        self.assertIn('coder', full)
+        self.assertIn('coordinator', full)
+
+    def test_help_mentions_commands_and_call_state(self):
+        ready = bridge.help_text(True)
+        self.assertIn('/status', ready)
+        self.assertIn('/tasks', ready)
+        self.assertIn('/auto', ready)
+        self.assertIn('/army', ready)
+        self.assertIn('create project', ready)
+        self.assertIn('ready now', ready)
+        self.assertIn('needs the notebook link', bridge.help_text(False))
+
+    def test_army_roster_is_a_list_even_when_missing(self):
+        self.assertIsInstance(bridge.army_roster(), list)
 
 
 if __name__ == '__main__':

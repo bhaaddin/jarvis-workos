@@ -287,9 +287,145 @@ def concise(text: str, limit: int = 2200) -> str:
 COMMANDS = [{'command': 'start', 'description': 'Greeting, call button and phone keyboard'},
             {'command': 'call', 'description': 'Get the live call link for your phone'},
             {'command': 'new', 'description': 'Start a fresh chat'},
+            {'command': 'status', 'description': 'Health, approvals, tasks and call readiness'},
+            {'command': 'tasks', 'description': 'List open tasks'},
+            {'command': 'auto', 'description': 'List scheduled automations'},
+            {'command': 'projects', 'description': 'Code projects and access'},
+            {'command': 'army', 'description': 'Specialist sub-agents roster'},
             {'command': 'paswerd', 'description': 'Connect Gmail with an app password'},
             {'command': 'code', 'description': 'List code projects and switch access off/ask'},
             {'command': 'help', 'description': 'What I can do from here'}]
+
+
+def short_time(value) -> str:
+    """Unix seconds to a short local timestamp; never raises on bad input."""
+    try:
+        stamp = float(value)
+        if stamp <= 0:
+            return '—'
+        return time.strftime('%d.%m %H:%M', time.localtime(stamp))
+    except (TypeError, ValueError, OverflowError, OSError):
+        return '—'
+
+
+def progress_note(elapsed: float) -> str | None:
+    """Interim edit text for long runs; None means stay silent."""
+    if elapsed >= 120:
+        return 'Still working on it… (%ds — big job, I will deliver or time out safely)' % int(elapsed)
+    if elapsed >= 60:
+        return 'Still working on it… (%ds)' % int(elapsed)
+    if elapsed >= 30:
+        return 'Working on it… (%ds)' % int(elapsed)
+    return None
+
+
+def format_status(health: dict, pending: int, open_tasks: int, model: str, call_ready: bool,
+                  call_left: str) -> str:
+    rows = ['🏠 JARVIS status',
+            '• Operator: %s  • Hub: %s  • Bridge: %s' % (
+                '✅' if health.get('operator') else '❌',
+                '✅' if health.get('hub') else '❌',
+                '✅' if health.get('bridge') else '❌'),
+            '• Model: %s' % (model or 'unknown'),
+            '• Approvals waiting: %d  • Open tasks: %d' % (pending, open_tasks)]
+    rows.append('• Call: %s%s' % ('ready ✅' if call_ready else 'not active 📵',
+                                  ' (%s left)' % call_left if call_ready and call_left else ''))
+    rows.append('Full detail lives in Tasks. /tasks /auto /projects /army for more.')
+    return '\n'.join(rows)
+
+
+def format_tasks_list(tasks: list) -> str:
+    open_tasks = [t for t in tasks if isinstance(t, dict)
+                  and str(((t.get('data') or {}) if isinstance(t.get('data'), dict) else {}).get('state', '')) not in (
+                      'done', 'completed', 'cancelled')][:10]
+    if not open_tasks:
+        return 'No open tasks. Send me work and it lands here.'
+    lines = ['🗂 Open tasks:']
+    for task in open_tasks:
+        data = task.get('data') if isinstance(task.get('data'), dict) else {}
+        title = str(data.get('title') or task.get('id') or '?')[:120]
+        due = data.get('dueAt')
+        lines.append('• %s [%s]%s' % (title, data.get('state', '?'),
+                                      ' — due %s' % short_time(due) if due else ''))
+    if len(open_tasks) == 10:
+        lines.append('(first 10 — the rest is in Tasks.)')
+    return '\n'.join(lines)
+
+
+def format_schedules(schedules: list) -> str:
+    items = [s for s in schedules if isinstance(s, dict)][:10]
+    if not items:
+        return 'No automations scheduled. Morning briefings and watchers appear here once configured.'
+    lines = ['⏰ Automations:']
+    for item in items:
+        name = str(item.get('name') or item.get('id') or '?')[:80]
+        state = 'ON ✅' if item.get('enabled') else 'OFF'
+        nxt = item.get('nextRun') or item.get('next_run')
+        lines.append('• %s — %s%s' % (name, state, ', next %s' % short_time(nxt) if nxt else ''))
+    return '\n'.join(lines)
+
+
+def format_army(roster: list) -> str:
+    if not roster:
+        return ('The specialist roster is not installed yet — the coordinator still handles everything directly. '
+                'Ask for it and I will wire the army skill.')
+    lines = ['🤖 Specialist army (loaded only when a task needs them):']
+    for agent in roster[:20]:
+        lines.append('• %s — %s' % (agent.get('name', '?'), agent.get('role', '')))
+    lines.append('The coordinator plans, delegates, verifies and reports. Nothing idles in memory.')
+    return '\n'.join(lines)
+
+
+def help_text(call_ready: bool) -> str:
+    return ('What I can do from here:\n'
+            '• Just talk — tasks, mail, code, research, reminders, calculations.\n'
+            '• /status — health, approvals waiting, open tasks, call readiness.\n'
+            '• /tasks — open work list.  • /auto — scheduled automations.\n'
+            '• /projects — code projects + access. Say "create project X" and I scaffold it for your tap.\n'
+            '• /army — specialist sub-agents roster.\n'
+            '• /call — one-click call link%s.  • /new — fresh chat.\n'
+            '• Voice notes work like text. Approvals arrive as ✅/❌ buttons.\n'
+            'Files, medical records and passwords stay in the secure Tasks app.'
+            % (' (ready now ✅)' if call_ready else ' (needs the notebook link 📵)'))
+
+
+ARMY_DIR = ROOT / 'operator' / 'skills' / 'jarvis-army' / 'specialists'
+
+
+def army_roster() -> list:
+    """Parse specialist one-liners from `# Name — role` first lines. Empty when not installed."""
+    roster = []
+    try:
+        files = sorted(ARMY_DIR.glob('*.md'))
+    except OSError:
+        return []
+    for path in files[:30]:
+        try:
+            first = path.read_text(encoding='utf-8').splitlines()[0].strip()
+        except (OSError, IndexError):
+            continue
+        if first.startswith('#'):
+            first = first[1:].strip()
+        name, _, role = first.partition('—')
+        name, _, role = name.strip(), _, role.strip()
+        if not role:
+            name, _, role = first.partition('-')
+            name, role = name.strip(), role.strip()
+        if name:
+            roster.append({'name': name[:60], 'role': role[:160]})
+    return roster
+
+
+def call_countdown(call_url_known: bool) -> str:
+    try:
+        config = json.loads((ROOT / 'runtime' / 'notebook-call.json').read_text(encoding='utf-8'))
+        left = float(config.get('expires') or 0) - time.time()
+        if left <= 0:
+            return ''
+        minutes = int(left // 60)
+        return '%dh %02dm' % (minutes // 60, minutes % 60) if minutes >= 60 else '%dm' % minutes
+    except (OSError, ValueError, TypeError):
+        return ''
 
 
 def code_projects() -> list:
@@ -330,10 +466,12 @@ def handle_code(chat_id: str, text: str) -> str:
     return 'Usage: /code — list, or /code <name> off|ask.'
 
 PHONE_KEYBOARD = {'keyboard': [[{'text': '📞 Call JARVIS'}],
-                               [{'text': '📧 Check mail'}, {'text': '🆕 New chat'}]],
+                               [{'text': '📧 Check mail'}, {'text': '🆕 New chat'}],
+                               [{'text': '📊 Status'}, {'text': '🗂 Tasks'}]],
                   'resize_keyboard': True, 'is_persistent': True}
 
-BUTTON_COMMANDS = {'📞 call jarvis': '/call', '📧 check mail': 'check my mail', '🆕 new chat': '/new'}
+BUTTON_COMMANDS = {'📞 call jarvis': '/call', '📧 check mail': 'check my mail', '🆕 new chat': '/new',
+                   '📊 status': '/status', '🗂 tasks': '/tasks'}
 
 
 def build_welcome(call_url: str | None) -> tuple[str, dict | None]:
@@ -665,15 +803,25 @@ class OperatorSession:
         write_conversations(mapping)
         return str(created['id'])
 
-    def ask_run(self, conversation_id: str, text: str, delivery: str) -> dict:
+    def ask_run(self, conversation_id: str, text: str, delivery: str, on_wait=None) -> dict:
         submitted = self.post('/api/chat', {'conversationId': conversation_id, 'requestId': str(uuid.uuid4()),
                                             'message': text[:MAX_TEXT], 'delivery': delivery, 'waitMs': 20000})
         run_id = str(submitted.get('id') or '')
         deadline = time.monotonic() + RUN_TIMEOUT
+        started = time.monotonic()
         run = submitted
+        last_note = ''
         while time.monotonic() < deadline and str(run.get('state')) in ('queued', 'running'):
             time.sleep(1)
             run = self.get('/api/runs/' + run_id)
+            if on_wait is not None:
+                note = progress_note(time.monotonic() - started) or ''
+                if note and note != last_note:
+                    last_note = note
+                    try:
+                        on_wait(note)
+                    except Exception:
+                        pass
         return run
 
     def ask(self, conversation_id: str, text: str, delivery: str) -> str:
@@ -855,6 +1003,57 @@ def looks_like_app_password(text: str) -> bool:
     return bool(APP_PASSWORD_RE.fullmatch(squashed))
 
 
+def quick_health() -> dict:
+    """Best-effort presence check; never raises, never blocks long."""
+    health = {'operator': False, 'hub': False, 'bridge': True}
+    for name, url in (('operator', OPERATOR + '/health'), ('hub', HUB + '/health')):
+        try:
+            health[name] = urllib.request.urlopen(url, timeout=3).status == 200
+        except OSError:
+            health[name] = False
+    return health
+
+
+def handle_status(session: OperatorSession, call_ready: bool) -> str:
+    health, pending, open_tasks, model = quick_health(), 0, 0, ''
+    try:
+        actions = session.get('/api/actions').get('actions', [])
+        pending = sum(1 for item in actions if isinstance(item, dict) and item.get('state') == 'awaiting_approval')
+    except Exception:
+        pass
+    try:
+        tasks = session.get('/api/tasks').get('tasks', [])
+        open_tasks = sum(1 for item in tasks if isinstance(item, dict)
+                         and str(((item.get('data') or {}) if isinstance(item.get('data'), dict) else {}).get(
+                             'state', '')) not in ('done', 'completed', 'cancelled'))
+    except Exception:
+        pass
+    try:
+        skills = session.get('/api/skills')
+        model = str((skills.get('model') or {}).get('name', '')) if isinstance(skills, dict) else ''
+    except Exception:
+        pass
+    if not health['operator']:
+        return ('⚠️ The task engine is unreachable from Telegram right now. Your chats, files and schedules are '
+                'safe on the PC — restart the operator and try again. Full detail in Tasks.')
+    return format_status(health, pending, open_tasks, model, call_ready,
+                         call_countdown(call_ready) if call_ready else '')
+
+
+def handle_tasks(session: OperatorSession) -> str:
+    try:
+        return format_tasks_list(session.get('/api/tasks').get('tasks', []))
+    except Exception:
+        return 'Could not reach the task list — the operator may be restarting. Try /status.'
+
+
+def handle_auto(session: OperatorSession) -> str:
+    try:
+        return format_schedules(session.get('/api/schedules').get('schedules', []))
+    except Exception:
+        return 'Could not reach the automations — the operator may be restarting. Try /status.'
+
+
 def handle_text(session: OperatorSession, token: str, chat_id: str, text: str, call_url: str | None,
                 message_id: int | None = None) -> None:
     lowered = BUTTON_COMMANDS.get(text.strip().lower(), text.strip().lower())
@@ -889,6 +1088,24 @@ def handle_text(session: OperatorSession, token: str, chat_id: str, text: str, c
         session.conversation_for(chat_id)
         send_text(token, chat_id, 'Fresh chat started. Earlier context is closed.')
         return
+    if lowered in ('/help', '/start help'):
+        send_text(token, chat_id, help_text(bool(call_url)))
+        return
+    if lowered == '/status':
+        send_text(token, chat_id, handle_status(session, bool(call_url)))
+        return
+    if lowered == '/tasks':
+        send_text(token, chat_id, handle_tasks(session))
+        return
+    if lowered == '/auto':
+        send_text(token, chat_id, handle_auto(session))
+        return
+    if lowered == '/projects':
+        send_text(token, chat_id, handle_code(chat_id, '/code'))
+        return
+    if lowered == '/army':
+        send_text(token, chat_id, format_army(army_roster()))
+        return
     instant = greeting_reply(text)
     if instant is not None:
         log('instant greeting, no model turn')
@@ -907,8 +1124,16 @@ def handle_text(session: OperatorSession, token: str, chat_id: str, text: str, c
         ack_id = None
     started = time.monotonic()
     suffix = SAFE_SUFFIX + (' Odpověz česky.' if detect_czech(text) else '')
+
+    def progress(edit: str) -> None:
+        if ack_id is not None:
+            try:
+                edit_text(token, chat_id, ack_id, edit)
+            except Exception:
+                pass
+
     try:
-        run = session.ask_run(session.conversation_for(chat_id), text + suffix, 'text')
+        run = session.ask_run(session.conversation_for(chat_id), text + suffix, 'text', on_wait=progress)
         elapsed = time.monotonic() - started
         log('text reply in %ds' % round(elapsed))
         if str(run.get('state')) == 'completed':
@@ -1020,7 +1245,16 @@ def handle_voice(session: OperatorSession, token: str, chat_id: str, file_id: st
         return
     try:
         suffix = SAFE_SUFFIX + (' Odpověz česky.' if detect_czech(transcript) else '')
-        run = session.ask_run(session.conversation_for(chat_id), transcript + suffix, 'voice')
+
+        def voice_progress(edit: str) -> None:
+            if ack_id is not None:
+                try:
+                    edit_text(token, chat_id, ack_id, 'Heard: "%s"\n\n%s' % (transcript[:200], edit))
+                except Exception:
+                    pass
+
+        run = session.ask_run(session.conversation_for(chat_id), transcript + suffix, 'voice',
+                              on_wait=voice_progress)
         elapsed = time.monotonic() - started
         log('voice reply in %ds' % round(elapsed))
         if str(run.get('state')) == 'completed':
