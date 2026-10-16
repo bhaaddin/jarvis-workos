@@ -38,9 +38,13 @@ own allowlist. The two bots never share credentials.
 
 Commands in Telegram: `/start` (greeting + call button), `/call` (one-click
 call — signed in, no password typing, tap and talk), `/new` (fresh chat),
+`/status` (health, approvals waiting, open tasks, call-link countdown),
+`/tasks` (open work), `/auto` (scheduled automations), `/projects` (code
+projects + access), `/army` (specialist sub-agents roster),
 `/paswerd xxxx xxxx xxxx xxxx` (connect Gmail from a Google app password,
 or just send the code plainly) — or just talk. The 📞 keyboard button uses
-the same one-click link. Typing `/` shows the menu;
+the same one-click link, with 📊 Status and 🗂 Tasks beside Mail and New-chat.
+Typing `/` shows the menu;
 the phone keyboard has Call / Mail / New-chat buttons. Pure greetings
 answer instantly without a model turn, and Czech messages get Czech
 answers. Stickers and other attachments
@@ -64,6 +68,12 @@ From Telegram you can now:
 - **Change code:** "fix the login bug in 4thebeat" — JARVIS proposes the
   exact edit and you get **Approve ✅ / Deny ❌** buttons. Nothing is written
   until you tap. Same for build/test runs (`npm test`, `dotnet build`).
+- **Create projects (2026-10-16):** "tell opencode to create project
+  garage-planner" — JARVIS scaffolds the folder (git init, README, starter
+  files, node/python/docs templates) and registers it tap-approve. Only
+  lowercase-dash names, one guarded parent folder, existing names refused.
+- **Long jobs report progress:** the "Working on it…" message edits itself
+  at 30/60/120s instead of silence.
 - **Safety rails:** only the 12 registered working clones are writable.
   Credential files, `.git`/`node_modules`/build folders, symlinks, and
   destructive commands (`rm -rf /`, `push --force`, `reset --hard`) are
@@ -112,11 +122,39 @@ No Twilio account, sender, or number exists yet, so nothing was bought or
 wired. Say the word when you want that route and I'll walk through the
 Twilio console steps with you.
 
+## 24/7 and proactive pings (2026-10-16)
+
+- **Watchdog** (`scripts/jarvis_watchdog.py check|repair`): operator, hub,
+  Telegram bridge and call-link freshness. Windows task **JarvisWatchdog**
+  runs repair every 15 minutes; the PC never sleeps while plugged in.
+  Reboot-without-logon still needs an elevated task — owner decision.
+- **Call link auto-refresh:** the watchdog renews the notebook call link
+  before its 2-hour warning line, so `/call` and the 📞 button keep working
+  while the PC is awake. Real phone numbers (Twilio) still need your
+  business activation.
+- **Proactive messages:** `python -B scripts/telegram_bridge.py say "text"`
+  messages your allowed chats (scheduler/watchers use this; Flow B voice
+  equivalent until telephony exists).
+
+## Specialist sub-agents (2026-10-16)
+
+`jarvis_army` fans out over real background child runs: analyzer, researcher,
+coder, mailer, scout (`operator/skills/jarvis-army/specialists/`). Protocol:
+plan, spawn 1–3 per call (owner tap), collect by child ids, merge only
+verified results. `/army` in Telegram shows the roster.
+
 ## Verification
 
-- `python -B -m unittest tests.test_telegram_bridge tests.test_operator_client tests.test_remote_call`
-  — 27 tests pass, including allowlist fail-closed, chunking, webhook
-  refusal, secret redaction, and unchanged proxy allowlists.
+- `python -B -m unittest tests.test_watchdog tests.test_telegram_bridge`
+  — 45 pass: new commands, progress notes, formatters, roster parsing,
+  watchdog repair-only-what-is-missing, proactive send fan-out.
+- `npm run check` in `operator/` — 105 pass, including scaffold and army
+  approval flows end to end.
+- `python -B scripts/jarvis_watchdog.py check` — live presence report.
+- Known unrelated failure (other lane, do not merge into this work):
+  `test_reusing_access_still_prepares_model_and_speech_without_rotating_credentials`
+  asserts the old notebook card shape without `call_secret`; production now
+  sends it by design. Their lane updates the assertion when they land.
 - `python -B scripts/telegram_bridge.py status` — live presence check:
   token saved?, allowed chats, bridge running?, operator/hub health, call
   link state. Names and booleans only; secrets never printed.

@@ -1298,6 +1298,31 @@ def handle_callback(session: OperatorSession, token: str, callback: dict) -> Non
     send_text(token, callback['chat_id'], text)
 
 
+def cmd_say(text: str) -> int:
+    """Proactive owner ping (Flow B lite): scheduler/watchers can message the owner.
+    Text only, chunked, allowed chats only. Voice-call equivalent until telephony exists."""
+    message = text.strip()[:3000]
+    if not message:
+        print('Usage: telegram_bridge.py say "text for the owner".')
+        return 1
+    token, allowed = read_token(), read_allowed()
+    if not token:
+        print('No token saved. Run configure first.')
+        return 1
+    if not allowed:
+        print('No allowed chats. Run watch, then allow <chat_id>.')
+        return 1
+    delivered = 0
+    for chat_id in sorted(allowed):
+        try:
+            send_text(token, chat_id, message)
+            delivered += 1
+        except Exception as error:
+            log('proactive send failed: %s' % type(error).__name__)
+    print(json.dumps({'chats': len(allowed), 'delivered': delivered}))
+    return 0 if delivered else 1
+
+
 def cmd_stop() -> int:
     """Stop bridge pollers by command line, never by a possibly stale PID file."""
     found = subprocess.run(['wmic', 'process', 'where', "name='python.exe'", 'get',
@@ -1411,6 +1436,8 @@ def main() -> int:
     allow.add_argument('chat_id')
     allow.add_argument('--remove', action='store_true')
     commands.add_parser('run')
+    say = commands.add_parser('say')
+    say.add_argument('text')
     args = parser.parse_args()
     try:
         if args.command == 'configure':
@@ -1425,6 +1452,8 @@ def main() -> int:
             return cmd_stop()
         if args.command == 'allow':
             return cmd_allow(args.chat_id, args.remove)
+        if args.command == 'say':
+            return cmd_say(args.text)
         return cmd_run()
     except (OSError, ValueError, RuntimeError, urllib.error.URLError) as error:
         log('command failed: %s' % error)
