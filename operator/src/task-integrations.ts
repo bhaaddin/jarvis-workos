@@ -37,8 +37,13 @@ export async function taskRead(name:string,input:ObjectValue,context:ToolContext
   if(name==='computer.read'){
     const names=Array.isArray(input.names)?input.names.map(String):[];
     assert(names.length<=20&&names.every(value=>/^[a-zA-Z0-9 ._-]{1,80}$/.test(value)),'PROCESS_NAME_INVALID','Use process names, not commands.');
+    assert(['health','processes','open','edit','search'].includes(String(input.action)),'COMPUTER_ACTION_INVALID','Choose health, processes, open, edit or search.');
+    const payload: Record<string, unknown> = {operation:input.action,names,details:input.details===true};
+    if (typeof input.target === 'string') payload.target = input.target.slice(0, 500);
+    if (typeof input.pattern === 'string') payload.pattern = input.pattern.slice(0, 100);
+    if (typeof input.root === 'string') payload.root = input.root.slice(0, 500);
     const response=await runProcess('powershell.exe',['-NoProfile','-NonInteractive','-File',path.join(packageRoot,'scripts/computer.ps1')],
-      {signal:context.signal,input:JSON.stringify({operation:input.action,names,details:input.details===true}),maximum:180000,timeoutMs:15000});
+      {signal:context.signal,input:JSON.stringify(payload),maximum:180000,timeoutMs:15000});
     assert(response.code===0,'COMPUTER_INSPECTION_FAILED','Windows inspection did not complete.',503);return object(JSON.parse(response.stdout.replace(/^\uFEFF/,'')));
   }
   if(name==='github.read'){

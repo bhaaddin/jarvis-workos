@@ -1,1 +1,70 @@
-{"manifestVersion":1,"id":"jarvis_computer","version":"1.1.0","description":"Inspect this Windows PC now. action=health reads CPU load, RAM, disk space and boot time. For named process queries always supply names, e.g. [claude,opencode,node,python]. Without names only a compact program/count summary is returned. Named results contain actual PIDs; request details=true only when CPU/memory/start-time metrics are needed. Timestamp fields are UTC. Never guess what task a process is doing, and do not execute caller-supplied commands.","handler":"handler.mjs","environments":["dev","staging","prod"],"permissions":["monitor.read"],"risk":"read","serviceOperations":["computer.read"],"sensitivity":"pii","requires":[],"inputSchema":{"type":"object","required":["action"],"properties":{"action":{"enum":["health","processes"]},"names":{"type":"array","maxItems":20,"items":{"type":"string","maxLength":80}},"details":{"type":"boolean"}},"additionalProperties":false},"outputSchema":{"type":"object"},"idempotent":true,"supportsUndo":false,"publicProjection":false,"timeoutMs":20000}
+{
+  "manifestVersion": 1,
+  "id": "jarvis_computer",
+  "version": "1.1.0",
+  "description": "Inspect this Windows PC now. action=health reads CPU load, RAM, disk space and boot time. For named process queries always supply names, e.g. [claude,opencode,node,python]. Without names only a compact program/count summary is returned. Named results contain actual PIDs; request details=true only when CPU/memory/start-time metrics are needed. Timestamp fields are UTC. Never guess what task a process is doing, and do not execute caller-supplied commands.",
+  "handler": "handler.mjs",
+  "environments": [
+    "dev",
+    "staging",
+    "prod"
+  ],
+  "permissions": [
+    "monitor.read"
+  ],
+  "risk": "read",
+  "serviceOperations": [
+    "computer.read"
+  ],
+  "sensitivity": "pii",
+  "requires": [],
+  "inputSchema": {
+    "type": "object",
+    "required": [
+      "action"
+    ],
+    "properties": {
+      "action": {
+        "enum": [
+          "health",
+          "processes",
+          "open",
+          "edit",
+          "search"
+        ]
+      },
+      "names": {
+        "type": "array",
+        "maxItems": 20,
+        "items": {
+          "type": "string",
+          "maxLength": 80
+        }
+      },
+      "details": {
+        "type": "boolean"
+      },
+      "target": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "pattern": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 100
+      },
+      "root": {
+        "type": "string",
+        "maxLength": 500
+      }
+    },
+    "additionalProperties": false
+  },
+  "outputSchema": {
+    "type": "object"
+  },
+  "idempotent": true,
+  "supportsUndo": false,
+  "publicProjection": false,
+  "timeoutMs": 20000
+}
