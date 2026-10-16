@@ -170,14 +170,15 @@ class NotebookRelayTests(unittest.TestCase):
         self.client.request.return_value = (200, b'<head></head>', 'text/html')
         self.assertIn(b'jarvis-operator-enabled', self.request()[2])
 
-    def test_one_click_call_tokens_are_signed_short_lived_and_cookie_bound(self):
+    def test_one_click_call_tokens_are_signed_link_lived_and_cookie_bound(self):
         secret = 'synthetic-call-secret'
         good = mint_call_token(secret)
         self.assertTrue(valid_call_token(secret, good))
         self.assertFalse(valid_call_token(secret, good[:-2] + ('00' if good[-2:] != '00' else '11')))
         self.assertFalse(valid_call_token(secret, 'not-a-token'))
+        self.assertFalse(valid_call_token(secret, '', ))
         self.assertFalse(valid_call_token('', good))
-        expired = mint_call_token(secret, now=time.time() - 700)
+        expired = mint_call_token(secret, now=time.time() - 9 * 3600)
         self.assertFalse(valid_call_token(secret, expired))
 
     def test_call_token_bypasses_password_once_then_cookie(self):
@@ -209,7 +210,9 @@ class NotebookRelayTests(unittest.TestCase):
             self.assertIn('jarvis_call=' + token, cookie)
             code, _, _ = get('/api/session', {'Cookie': 'jarvis_call=' + token})
             self.assertEqual(code, 200)
-            self.assertEqual(get('/?call=forged.token')[0], 401)
+            forged_code, _, forged_body = get('/?call=forged.token')
+            self.assertEqual(forged_code, 200)
+            self.assertIn(b'/call', forged_body)
             self.assertEqual(get('/')[0], 401)
             self.client.request.assert_called()
         finally:

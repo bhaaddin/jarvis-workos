@@ -21,7 +21,10 @@ from .operator_client import ROUTES as OPERATOR_ROUTES
 
 HUB = 'http://127.0.0.1:18791'
 MAX_RESPONSE = 32 * 1024 * 1024
-CALL_TOKEN_TTL = 600
+# One-click tokens live as long as the tunnel itself (8h): a tap must open the
+# call, not a password popup, at any point while the link is alive. The bearer
+# lives only in the owner's private bot chat; the tunnel death kills it anyway.
+CALL_TOKEN_TTL = 8 * 3600
 
 
 def mint_call_token(secret, now=None):
@@ -246,6 +249,7 @@ def handler(config_path, client=None):
                 return self.respond(410, {'error': 'This temporary notebook link expired. Run JARVIS Notebook on the PC again.'})
             call_token = ''
             query_token = (urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query).get('call') or [''])[0]
+            query_had_call = bool(query_token)
             if query_token and valid_call_token(config.get('call_secret', ''), query_token):
                 call_token = query_token
             else:
@@ -259,6 +263,16 @@ def handler(config_path, client=None):
                     call_token = cookie_token.value
             expected = 'Basic ' + base64.b64encode((config['username'] + ':' + config['password']).encode()).decode()
             if not call_token and not secrets.compare_digest(self.headers.get('Authorization', '').encode(), expected.encode()):
+                if query_had_call:
+                    page = ('<!doctype html><html lang="en"><head><meta charset="UTF-8">'
+                            '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
+                            '<title>JARVIS call link expired</title></head>'
+                            '<body style="background:#0a0f1a;color:#e2e8f0;font-family:sans-serif;padding:40px 24px;text-align:center">'
+                            '<h1>This call link expired</h1>'
+                            '<p>Send <b>/call</b> to your JARVIS bot in Telegram for a fresh one-click link, '
+                            'or sign in with the notebook username and password shown on your PC.</p>'
+                            '</body></html>').encode()
+                    return self.respond(200, page, media='text/html')
                 return self.respond(401, {'error': 'Enter the notebook username and password shown on your PC.'}, challenge=True)
             origin = self.headers.get('Origin')
             accepted_origin = 'http://' + local_host if host == local_host else config['url']
