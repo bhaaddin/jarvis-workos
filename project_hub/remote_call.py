@@ -185,10 +185,17 @@ def handler(config_path, client=None):
             # Never log Authorization, cookies, request bodies, or URL credentials.
             print(f'{self.command} {urllib.parse.urlsplit(self.path).path} {args[1] if len(args) > 1 else ""}', flush=True)
 
-        def respond(self, code, body, media='application/json', challenge=False, disposition=None, call_cookie=None):
+        def respond(self, code, body, media='application/json', challenge=False,
+                      disposition=None, call_cookie=None):
             # Closing a Windows socket with an unread POST body can replace a
             # legitimate HTTP denial with a reset. Discard only a small, bounded
             # declared body; never parse, forward or indefinitely wait for it.
+            if code >= 400:
+                query = urllib.parse.urlsplit(self.path).query
+                print(f'DENY {self.command} {urllib.parse.urlsplit(self.path).path} {code} '
+                      f'fetch-site={self.headers.get("Sec-Fetch-Site")} fetch-mode={self.headers.get("Sec-Fetch-Mode")} '
+                      f'origin={self.headers.get("Origin")} '
+                      f'auth={bool(self.headers.get("Authorization"))} callq={bool(query)}', flush=True)
             if code >= 400 and not getattr(self, '_body_read', False) and not self.headers.get('Transfer-Encoding'):
                 lengths = self.headers.get_all('Content-Length', [])
                 if len(lengths) == 1 and lengths[0].isdigit() and 0 < int(lengths[0]) <= 65536:
@@ -278,7 +285,15 @@ def handler(config_path, client=None):
             accepted_origin = 'http://' + local_host if host == local_host else config['url']
             if (origin and origin != accepted_origin) or (self.command == 'POST' and origin != accepted_origin):
                 return self.respond(403, {'error': 'Open the notebook link directly in your browser.'})
-            if self.headers.get('Sec-Fetch-Site') not in (None, 'none', 'same-origin'):
+            # In-app browsers (e.g. tapping a link inside Telegram) send
+            # Sec-Fetch-Site: cross-site on the top-level navigation. Allow that
+            # visible navigation; keep denying cross-site subresource/fetch calls.
+            # Forged cross-site POSTs stay harmless: the session cookie is
+            # SameSite=Lax (never sent on them) and framing is CSP-blocked.
+            fetch_site = self.headers.get('Sec-Fetch-Site')
+            fetch_mode = self.headers.get('Sec-Fetch-Mode')
+            if fetch_site not in (None, 'none', 'same-origin') and not (
+                    fetch_site == 'cross-site' and fetch_mode in ('navigate', 'nested-navigate')):
                 return self.respond(403, {'error': 'Cross-site relay requests are not accepted.'})
 
             parsed = urllib.parse.urlsplit(self.path)

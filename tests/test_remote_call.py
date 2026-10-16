@@ -210,6 +210,14 @@ class NotebookRelayTests(unittest.TestCase):
             self.assertIn('jarvis_call=' + token, cookie)
             code, _, _ = get('/api/session', {'Cookie': 'jarvis_call=' + token})
             self.assertEqual(code, 200)
+            # In-app browser taps arrive cross-site: top-level navigation is
+            # allowed, subresource-style fetches stay refused.
+            nav = {'Sec-Fetch-Site': 'cross-site', 'Sec-Fetch-Mode': 'navigate'}
+            self.assertEqual(get('/?call=' + token, nav)[0], 200)
+            fetch = {'Sec-Fetch-Site': 'cross-site', 'Sec-Fetch-Mode': 'no-cors',
+                     'Cookie': 'jarvis_call=' + token}
+            self.assertEqual(get('/?call=' + token, fetch)[0], 403)
+            self.assertEqual(get('/api/session', fetch)[0], 403)
             forged_code, _, forged_body = get('/?call=forged.token')
             self.assertEqual(forged_code, 200)
             self.assertIn(b'/call', forged_body)
