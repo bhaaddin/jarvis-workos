@@ -160,6 +160,16 @@ export class Services {
         assert(manifest.risk==='read'&&input.operation==='read','CODE_READ_ONLY','The read skill only reads project files.',403);
         return {data:await codeWorkspace(input,context),sensitivity:'internal',provenance:{...provenance,provider:'code.read',mode:'live'}};
       }
+      if(name==='army.coordinate'){
+        assert(manifest.risk==='automation','EFFECT_NOT_ADMITTED','Coordination requires the automation policy.',403);
+        const {armyCoordinate} = await import('./army.js');
+        const data=await armyCoordinate(input,context,this.store,
+          input.operation==='spawn' ? async () => {
+            assert(effect,'EFFECT_NOT_ADMITTED','Spawning specialists needs an admitted action.',403);
+            await effect.authorize();
+          } : undefined);
+        return {data,sensitivity:'internal',provenance:{...provenance,provider:'army.coordinate',mode:'live'}};
+      }
       if(name==='tasks.list')return {data:await this.store.call<Json>('record.list',{...base,kind:'task'}),sensitivity:'pii',provenance};
       if(name==='tasks.save'){
         assert(manifest.risk!=='read'&&effect,'EFFECT_NOT_ADMITTED','Task changes require an admitted action.',403);
